@@ -1,179 +1,162 @@
-# Arbius Gallery - AI Art on the Blockchain
+# 🎨 Arbius Gallery
 
-A beautiful Django web application that automatically discovers and displays AI-generated artwork created through the Arbius protocol on the Arbitrum blockchain.
+A beautiful web gallery for AI-generated images from the Arbius network on Arbitrum. This Django application scans the blockchain for `submitSolution` transactions and displays the resulting AI artwork.
 
-## Features
+## ✨ Features
 
-- 🎨 **Beautiful Modern UI** - Dark theme with gradient effects and smooth animations
-- 🔍 **Automatic Discovery** - Scans the blockchain every 10 minutes for new AI artwork
-- 🌐 **IPFS Integration** - Displays images stored on the decentralized IPFS network
-- 📊 **Real-time Stats** - Live statistics and gallery insights
-- 📱 **Responsive Design** - Works perfectly on desktop and mobile devices
-- ⚡ **Fast Performance** - Optimized for speed with pagination and caching
+- **🔍 Automatic Blockchain Scanning**: Continuously monitors Arbitrum for new Arbius images
+- **🎯 Smart CID Extraction**: Decodes IPFS content identifiers from transaction data
+- **🖼️ Beautiful Gallery Interface**: Modern, responsive design with dark theme
+- **⚡ Real-time Updates**: Shows latest AI-generated images as they're created
+- **📱 Mobile Responsive**: Works perfectly on all devices
+- **🚀 One-click Heroku Deployment**: Easy deployment with automated setup
 
-## Live Demo
+## 🚀 Quick Start with Heroku
 
-Visit the live gallery at: https://arbius-6cdb53a42247.herokuapp.com/
-
-## Quick Start
-
-### Local Development
-
-1. **Clone the repository**
+1. **Clone and Deploy**:
    ```bash
-   git clone <your-repo-url>
+   git clone [your-repo-url]
    cd arbius_gallery
+   ./deploy.sh
    ```
 
-2. **Create virtual environment**
+2. **Set up 1-minute scanning**:
+   ```bash
+   ./setup_github.sh
+   ```
+
+## 🔄 Scanning Options
+
+### Heroku Scheduler (10-minute intervals)
+Heroku's built-in scheduler supports minimum 10-minute intervals:
+1. Run: `heroku addons:open scheduler --app your-app-name`
+2. Add job: `python3 manage.py scan_arbius --blocks 100 --quiet`
+
+### GitHub Actions (1-minute intervals)
+For more frequent scanning, use the included GitHub Actions workflow:
+1. Push your code to GitHub
+2. Add repository secrets:
+   - `HEROKU_API_KEY`: Your Heroku API token
+   - `HEROKU_APP_NAME`: Your Heroku app name
+3. The workflow will automatically scan every minute!
+
+## 🛠️ Manual Development Setup
+
+1. **Create virtual environment**:
    ```bash
    python -m venv arbius_env
    source arbius_env/bin/activate  # On Windows: arbius_env\Scripts\activate
    ```
 
-3. **Install dependencies**
+2. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Run migrations**
+3. **Set up database**:
    ```bash
    python manage.py migrate
    ```
 
-5. **Create superuser (optional)**
-   ```bash
-   python manage.py createsuperuser
-   ```
-
-6. **Start development server**
+4. **Run development server**:
    ```bash
    python manage.py runserver
    ```
 
-7. **Scan for images**
+5. **Scan for images**:
    ```bash
-   python manage.py scan_arbius --blocks 1000
+   # Scan recent blocks
+   python manage.py scan_arbius --blocks 100
+   
+   # Quiet mode for automation
+   python manage.py scan_arbius --blocks 100 --quiet
    ```
 
-## Heroku Deployment
+## 📊 How It Works
 
-### Prerequisites
-- [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli) installed
-- Git repository initialized
+1. **Blockchain Monitoring**: Scans Arbitrum blocks for `submitSolution` transactions
+2. **Transaction Analysis**: Extracts solution data from contract interactions
+3. **CID Decoding**: Decodes IPFS content identifiers using base58 encoding
+4. **Image Verification**: Checks IPFS accessibility and caches metadata
+5. **Gallery Display**: Shows images in a beautiful, responsive interface
 
-### Option 1: Automated Deployment
-```bash
-./deploy.sh
+## 🔧 Configuration
+
+### Environment Variables
+- `SECRET_KEY`: Django secret key
+- `DEBUG`: Set to `False` in production
+- `ALLOWED_HOSTS`: Comma-separated list of allowed hosts
+- `DATABASE_URL`: PostgreSQL URL (auto-configured on Heroku)
+
+### Blockchain Settings
+- `ARBISCAN_API_KEY`: API key for Arbiscan
+- `ENGINE_CONTRACT_ADDRESS`: Arbius engine contract
+- `ROUTER_CONTRACT_ADDRESS`: Arbius router contract
+- `ARBITRUM_RPC_URL`: Arbitrum RPC endpoint
+- `IPFS_BASE_URL`: IPFS gateway URL
+
+## 📁 Project Structure
+
 ```
-Just run this script and follow the prompts!
-
-### Option 2: Manual Deployment
-
-#### Step 1: Create Heroku App
-```bash
-heroku create your-app-name
-```
-
-#### Step 2: Add PostgreSQL Database
-```bash
-heroku addons:create heroku-postgresql:essential-0
-```
-
-#### Step 3: Set Environment Variables
-```bash
-heroku config:set SECRET_KEY="your-secret-key-here"
-heroku config:set DEBUG=False
-heroku config:set ALLOWED_HOSTS="your-app-name.herokuapp.com"
-```
-
-#### Step 4: Deploy
-```bash
-git branch -M main  # Ensure you're on main branch
-git push heroku main
-```
-
-#### Step 5: Run Migrations
-```bash
-heroku run python manage.py migrate
+arbius_gallery/
+├── gallery/                    # Main Django app
+│   ├── models.py              # Database models
+│   ├── views.py               # View logic
+│   ├── services.py            # Blockchain scanning logic
+│   ├── templates/             # HTML templates
+│   └── management/commands/   # Management commands
+├── static/                    # Static files (CSS, JS)
+├── .github/workflows/         # GitHub Actions
+├── deploy.sh                  # Heroku deployment script
+├── setup_github.sh           # GitHub setup script
+└── requirements.txt          # Python dependencies
 ```
 
-#### Step 6: Initial Scan
+## 🔍 Management Commands
+
+### scan_arbius
+Scans the blockchain for new Arbius images:
 ```bash
-heroku run "python manage.py scan_arbius --blocks 1000"
+python manage.py scan_arbius [--blocks N] [--quiet]
 ```
 
-#### Step 7: Set Up Automatic Scanning
+Options:
+- `--blocks N`: Number of recent blocks to scan (default: 100)
+- `--quiet`: Suppress output for automated runs
 
-Add the **Heroku Scheduler** add-on for automatic image discovery:
+## 🚀 Deployment
 
-```bash
-heroku addons:create scheduler:standard
-```
+### Heroku (Recommended)
+1. Run the deployment script: `./deploy.sh`
+2. Set up scanning with either:
+   - Heroku Scheduler (10-min intervals)
+   - GitHub Actions (1-min intervals)
 
-Then configure the scheduler:
-```bash
-heroku addons:open scheduler
-```
+### Manual Deployment
+1. Set environment variables
+2. Run migrations: `python manage.py migrate`
+3. Collect static files: `python manage.py collectstatic`
+4. Set up scheduled scanning
 
-Add this job to run **every 10 minutes** (minimum interval):
-```bash
-python manage.py scan_arbius --blocks 100 --quiet
-```
+## 🐛 Troubleshooting
 
-⚠️ **Note**: Heroku Scheduler minimum interval is 10 minutes, not 1 minute.
+### 500 Server Error
+- Check that all environment variables are set
+- Ensure database migrations have run
+- Verify ALLOWED_HOSTS includes your domain
 
-This will automatically scan for new Arbius images every 10 minutes!
+### No Images Found
+- Check API key validity
+- Verify contract addresses
+- Ensure RPC endpoint is accessible
+- Try scanning more blocks
 
-## Environment Variables
+### GitHub Actions Not Working
+- Verify repository secrets are set correctly
+- Check HEROKU_API_KEY is valid
+- Ensure HEROKU_APP_NAME matches your app
 
-For production deployment, set these environment variables:
-
-- `SECRET_KEY` - Django secret key (generate a new one for production)
-- `DEBUG` - Set to `False` for production
-- `ALLOWED_HOSTS` - Your domain name (e.g., `your-app.herokuapp.com`)
-- `DATABASE_URL` - Automatically set by Heroku PostgreSQL
-
-## Management Commands
-
-### Scan for New Images
-```bash
-# Scan recent 100 blocks
-python manage.py scan_arbius --blocks 100
-
-# Quiet mode (for scheduled runs)
-python manage.py scan_arbius --blocks 100 --quiet
-```
-
-### Recheck IPFS Accessibility
-```bash
-python manage.py recheck_ipfs
-```
-
-## How It Works
-
-1. **Blockchain Scanning**: The app scans Arbitrum blockchain for `submitSolution` transactions
-2. **CID Extraction**: Extracts IPFS Content Identifiers (CIDs) from transaction data
-3. **IPFS Verification**: Checks if images are accessible on the IPFS network
-4. **Database Storage**: Stores image metadata and accessibility status
-5. **Gallery Display**: Shows images in a beautiful, responsive gallery interface
-
-## Technical Details
-
-- **Framework**: Django 5.2.2
-- **Database**: PostgreSQL (production) / SQLite (development)
-- **Frontend**: Bootstrap 5.3 with custom CSS
-- **Blockchain**: Arbitrum network via Arbiscan API
-- **Storage**: IPFS decentralized storage
-- **Deployment**: Heroku with automatic scaling
-- **Scanning Frequency**: Every 10 minutes (Heroku Scheduler minimum)
-
-## Contract Addresses
-
-- **Engine Contract**: `0x9b51Ef044d3486A1fB0A2D55A6e0CeeAdd323E66`
-- **Router Contract**: `0xecAba4E6a4bC1E3DE3e996a8B2c89e8B0626C9a1`
-
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -181,14 +164,16 @@ python manage.py recheck_ipfs
 4. Add tests if applicable
 5. Submit a pull request
 
-## License
+## 📄 License
 
-This project is open source and available under the [MIT License](LICENSE).
+MIT License - see LICENSE file for details.
 
-## About Arbius
+## 🙏 Acknowledgments
 
-Arbius is a decentralized AI network that enables anyone to generate AI content through blockchain transactions. Learn more at [arbius.org](https://arbius.org).
+- **Arbius Team**: For creating the decentralized AI network
+- **Arbitrum**: For the fast, low-cost blockchain infrastructure
+- **Django Community**: For the excellent web framework
 
 ---
 
-**Built with ❤️ for the decentralized AI community** 
+**🎉 Enjoy exploring the beautiful world of AI-generated art on Arbius!** 
