@@ -1,43 +1,33 @@
-# Arbius Gallery
+# Arbius Gallery - AI Art on the Blockchain
 
-A Django web application that scans the Arbitrum blockchain for AI-generated images created through the Arbius protocol and displays them in a beautiful gallery interface.
+A beautiful Django web application that automatically discovers and displays AI-generated artwork created through the Arbius protocol on the Arbitrum blockchain.
 
 ## Features
 
-- 🖼️ **Image Gallery**: Browse AI-generated images mined on Arbitrum
-- 🔍 **Blockchain Scanner**: Automatically discovers new Arbius images
-- 📊 **Statistics Dashboard**: View analytics about image generation
-- 🎨 **Modern UI**: Beautiful, responsive design with dark theme
-- 🔗 **IPFS Integration**: Direct links to IPFS-hosted content
-- 📱 **Mobile Friendly**: Responsive design works on all devices
+- 🎨 **Beautiful Modern UI** - Dark theme with gradient effects and smooth animations
+- 🔍 **Automatic Discovery** - Scans the blockchain every minute for new AI artwork
+- 🌐 **IPFS Integration** - Displays images stored on the decentralized IPFS network
+- 📊 **Real-time Stats** - Live statistics and gallery insights
+- 📱 **Responsive Design** - Works perfectly on desktop and mobile devices
+- ⚡ **Fast Performance** - Optimized for speed with pagination and caching
 
-## Tech Stack
+## Live Demo
 
-- **Backend**: Django 5.2.2
-- **Frontend**: Bootstrap 5.3, Font Awesome
-- **Database**: SQLite (easily configurable to PostgreSQL/MySQL)
-- **Blockchain**: Arbitrum One (via Arbiscan API)
-- **Storage**: IPFS for images
+Visit the live gallery at: [Your Heroku URL will be here]
 
-## Installation
+## Quick Start
 
-### Prerequisites
-
-- Python 3.8+
-- pip
-- Git
-
-### Setup
+### Local Development
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone <your-repo-url>
    cd arbius_gallery
    ```
 
-2. **Create and activate virtual environment**
+2. **Create virtual environment**
    ```bash
-   python3 -m venv arbius_env
+   python -m venv arbius_env
    source arbius_env/bin/activate  # On Windows: arbius_env\Scripts\activate
    ```
 
@@ -46,119 +36,132 @@ A Django web application that scans the Arbitrum blockchain for AI-generated ima
    pip install -r requirements.txt
    ```
 
-4. **Run database migrations**
+4. **Run migrations**
    ```bash
    python manage.py migrate
    ```
 
-5. **Create a superuser (optional)**
+5. **Create superuser (optional)**
    ```bash
    python manage.py createsuperuser
    ```
 
-6. **Start the development server**
+6. **Start development server**
    ```bash
    python manage.py runserver
    ```
 
-7. **Visit the application**
-   Open your browser and go to `http://127.0.0.1:8000/`
+7. **Scan for images**
+   ```bash
+   python manage.py scan_arbius --blocks 1000
+   ```
 
-## Configuration
+## Heroku Deployment
 
-The application is pre-configured with:
+### Prerequisites
+- [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli) installed
+- Git repository initialized
 
-- **Arbiscan API Key**: `RSUGKSAPR7RXWF6U1S7FHYF7VSAY1I9M6D`
-- **Engine Contract**: `0x9b51Ef044d3486A1fB0A2D55A6e0CeeAdd323E66`
-- **Router Contract**: `0xecAba4E6a4bC1E3DE3e996a8B2c89e8B0626C9a1`
-- **IPFS Gateway**: `https://ipfs.arbius.org/ipfs`
-
-These can be modified in `arbius_gallery/settings.py`.
-
-## Usage
-
-### Web Interface
-
-1. **Gallery View**: Browse all discovered Arbius images
-2. **Image Details**: Click on any image to view detailed information
-3. **Statistics**: View analytics about the gallery and scanning status
-4. **Manual Scan**: Use the "Scan Blockchain" button to trigger discovery
-
-### Command Line
-
-**Scan for new images:**
+### Step 1: Create Heroku App
 ```bash
-python manage.py scan_arbius
+heroku create your-app-name
 ```
 
-**Scan specific number of blocks:**
+### Step 2: Add PostgreSQL Database
 ```bash
-python manage.py scan_arbius --blocks 500
+heroku addons:create heroku-postgresql:mini
 ```
 
-**Force scan (bypass in-progress check):**
+### Step 3: Set Environment Variables
 ```bash
-python manage.py scan_arbius --force
+heroku config:set SECRET_KEY="your-secret-key-here"
+heroku config:set DEBUG=False
+heroku config:set ALLOWED_HOSTS="your-app-name.herokuapp.com"
 ```
 
-### Admin Interface
+### Step 4: Deploy
+```bash
+git add .
+git commit -m "Deploy to Heroku"
+git push heroku main
+```
 
-Access the Django admin at `http://127.0.0.1:8000/admin/` to:
-- View and manage discovered images
-- Monitor scan status
-- Manually edit image metadata
+### Step 5: Run Migrations
+```bash
+heroku run python manage.py migrate
+```
+
+### Step 6: Create Superuser (Optional)
+```bash
+heroku run python manage.py createsuperuser
+```
+
+### Step 7: Set Up Automatic Scanning
+
+Add the **Heroku Scheduler** add-on for automatic image discovery:
+
+```bash
+heroku addons:create scheduler:standard
+```
+
+Then configure the scheduler:
+```bash
+heroku addons:open scheduler
+```
+
+Add this job to run **every minute**:
+```bash
+python manage.py scan_arbius --blocks 100 --quiet
+```
+
+This will automatically scan for new Arbius images every minute!
+
+## Environment Variables
+
+For production deployment, set these environment variables:
+
+- `SECRET_KEY` - Django secret key (generate a new one for production)
+- `DEBUG` - Set to `False` for production
+- `ALLOWED_HOSTS` - Your domain name (e.g., `your-app.herokuapp.com`)
+- `DATABASE_URL` - Automatically set by Heroku PostgreSQL
+
+## Management Commands
+
+### Scan for New Images
+```bash
+# Scan recent 100 blocks
+python manage.py scan_arbius --blocks 100
+
+# Quiet mode (for scheduled runs)
+python manage.py scan_arbius --blocks 100 --quiet
+```
+
+### Recheck IPFS Accessibility
+```bash
+python manage.py recheck_ipfs
+```
 
 ## How It Works
 
-1. **Transaction Discovery**: The scanner queries the Arbiscan API for transactions to the Arbius Engine contract
-2. **Data Extraction**: Each transaction is analyzed to identify `submitSolution` calls
-3. **CID Extraction**: The Content Identifier (CID) is extracted from transaction data
-4. **Image URLs**: IPFS URLs are constructed using the CID pattern
-5. **Database Storage**: Image metadata is stored in the SQLite database
-6. **Gallery Display**: The web interface displays images with pagination
+1. **Blockchain Scanning**: The app scans Arbitrum blockchain for `submitSolution` transactions
+2. **CID Extraction**: Extracts IPFS Content Identifiers (CIDs) from transaction data
+3. **IPFS Verification**: Checks if images are accessible on the IPFS network
+4. **Database Storage**: Stores image metadata and accessibility status
+5. **Gallery Display**: Shows images in a beautiful, responsive gallery interface
 
-## Arbius Protocol Integration
+## Technical Details
 
-The application integrates with the Arbius decentralized AI network:
+- **Framework**: Django 5.2.2
+- **Database**: PostgreSQL (production) / SQLite (development)
+- **Frontend**: Bootstrap 5.3 with custom CSS
+- **Blockchain**: Arbitrum network via Arbiscan API
+- **Storage**: IPFS decentralized storage
+- **Deployment**: Heroku with automatic scaling
 
-- **Router Contract**: Handles task submissions
-- **Engine Contract**: Processes miner solutions containing image CIDs
-- **IPFS Storage**: Images are stored on IPFS with standard naming (`out-1.png`)
-- **Arbitrum Blockchain**: All transactions are recorded on Arbitrum One
+## Contract Addresses
 
-## API Endpoints
-
-- `GET /api/scan-status/` - Get current scanning status
-- `POST /api/scan/` - Trigger blockchain scan
-
-## Development
-
-### Project Structure
-
-```
-arbius_gallery/
-├── arbius_gallery/          # Django project settings
-├── gallery/                 # Main application
-│   ├── models.py           # Database models
-│   ├── views.py            # Web views
-│   ├── services.py         # Blockchain scanning logic
-│   ├── admin.py            # Admin interface
-│   └── management/         # Custom Django commands
-├── templates/              # HTML templates
-├── static/                 # CSS, JS, images
-└── requirements.txt        # Python dependencies
-```
-
-### Key Models
-
-- **ArbiusImage**: Stores image metadata and blockchain data
-- **ScanStatus**: Tracks scanning progress and status
-
-### Customization
-
-- Modify `GALLERY_IMAGES_PER_PAGE` in settings for pagination
-- Update CSS variables in `base.html` for custom styling
-- Extend scanner logic in `gallery/services.py`
+- **Engine Contract**: `0x9b51Ef044d3486A1fB0A2D55A6e0CeeAdd323E66`
+- **Router Contract**: `0xecAba4E6a4bC1E3DE3e996a8B2c89e8B0626C9a1`
 
 ## Contributing
 
@@ -170,15 +173,12 @@ arbius_gallery/
 
 ## License
 
-This project is open source and available under the MIT License.
+This project is open source and available under the [MIT License](LICENSE).
 
-## Support
+## About Arbius
 
-For issues and questions:
-- Check the GitHub Issues
-- Review the Arbius documentation: https://arbius.org
-- Examine Arbiscan transaction data for debugging
+Arbius is a decentralized AI network that enables anyone to generate AI content through blockchain transactions. Learn more at [arbius.org](https://arbius.org).
 
 ---
 
-**Note**: This application scans public blockchain data and displays images hosted on IPFS. All content is generated by the Arbius network participants. 
+**Built with ❤️ for the decentralized AI community** 
