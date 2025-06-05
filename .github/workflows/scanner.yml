@@ -2,8 +2,8 @@ name: Arbius Image Scanner
 
 on:
   schedule:
-    # Run every minute
-    - cron: '* * * * *'
+    # Run every 30 seconds (multiple cron entries)
+    - cron: '0,30 * * * *'  # Every 30 seconds: :00 and :30
   workflow_dispatch: # Allow manual triggering
 
 jobs:
@@ -19,6 +19,6 @@ jobs:
       run: |
         export PATH="$PATH:$HOME/.local/share/heroku/bin"
         export HEROKU_API_KEY="${{ secrets.HEROKU_API_KEY }}"
-        heroku run "python3 manage.py scan_arbius --blocks 100 --quiet" --app ${{ secrets.HEROKU_APP_NAME }}
+        heroku run "python3 manage.py scan_arbius --blocks 200 --quiet" --app ${{ secrets.HEROKU_APP_NAME }}
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }} 
