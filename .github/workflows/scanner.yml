@@ -15,12 +15,10 @@ jobs:
       run: |
         curl https://cli-assets.heroku.com/install.sh | sh
         
-    - name: Login to Heroku
-      run: |
-        echo "${{ secrets.HEROKU_API_KEY }}" | heroku auth:token
-        
     - name: Scan for new Arbius images
       run: |
-        heroku run python3 manage.py scan_arbius --blocks 50 --quiet --app ${{ secrets.HEROKU_APP_NAME }}
+        export PATH="$PATH:$HOME/.local/share/heroku/bin"
+        export HEROKU_API_KEY="${{ secrets.HEROKU_API_KEY }}"
+        heroku run "python3 manage.py scan_arbius --blocks 50 --quiet" --app ${{ secrets.HEROKU_APP_NAME }}
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }} 
