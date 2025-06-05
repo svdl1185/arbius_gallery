@@ -19,6 +19,6 @@ jobs:
       run: |
         export PATH="$PATH:$HOME/.local/share/heroku/bin"
         export HEROKU_API_KEY="${{ secrets.HEROKU_API_KEY }}"
-        heroku run "python3 manage.py scan_arbius --blocks 50 --quiet" --app ${{ secrets.HEROKU_APP_NAME }}
+        heroku run "python3 manage.py scan_arbius --blocks 100 --quiet" --app ${{ secrets.HEROKU_APP_NAME }}
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }} 
