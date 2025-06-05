@@ -1,0 +1,283 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ image.short_cid }} - Arbius Gallery{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'gallery:gallery' %}" class="text-decoration-none">
+                        <i class="fas fa-home me-1"></i>Gallery
+                    </a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">
+                    {{ image.short_cid }}
+                </li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Image Display -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="position-relative">
+                    <img src="{{ image.image_url }}" 
+                         class="img-fluid w-100" 
+                         alt="Arbius Image {{ image.short_cid }}"
+                         style="border-radius: 8px;"
+                         onerror="this.parentElement.innerHTML='<div class=\'d-flex align-items-center justify-content-center bg-light\' style=\'height: 400px; border-radius: 8px;\'><i class=\'fas fa-image fa-5x text-muted\'></i></div>'">
+                    
+                    <div class="position-absolute top-0 end-0 m-3">
+                        <span class="badge bg-success fs-6">
+                            <i class="fas fa-check-circle me-1"></i>Available
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="text-center mt-4">
+            <div class="btn-group" role="group">
+                <a href="{{ image.image_url }}" 
+                   target="_blank" 
+                   class="btn btn-primary">
+                    <i class="fas fa-download me-2"></i>View Full Size
+                </a>
+                <a href="{{ image.ipfs_url }}" 
+                   target="_blank" 
+                   class="btn btn-info">
+                    <i class="fas fa-globe me-2"></i>IPFS Gateway
+                </a>
+                <a href="{{ arbiscan_tx_url }}" 
+                   target="_blank" 
+                   class="btn btn-secondary">
+                    <i class="fas fa-external-link-alt me-2"></i>Arbiscan
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Image Metadata -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Image Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted">Content Identifier (CID)</label>
+                    <div class="input-group">
+                        <input type="text" 
+                               class="form-control bg-dark text-light border-secondary" 
+                               value="{{ image.cid }}" 
+                               readonly>
+                        <button class="btn btn-outline-secondary" 
+                                type="button" 
+                                onclick="copyToClipboard('{{ image.cid }}')">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-muted">Transaction Hash</label>
+                    <div class="input-group">
+                        <input type="text" 
+                               class="form-control bg-dark text-light border-secondary" 
+                               value="{{ image.transaction_hash }}" 
+                               readonly>
+                        <button class="btn btn-outline-secondary" 
+                                type="button" 
+                                onclick="copyToClipboard('{{ image.transaction_hash }}')">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-muted">Task ID</label>
+                    <div class="input-group">
+                        <input type="text" 
+                               class="form-control bg-dark text-light border-secondary" 
+                               value="{{ image.task_id }}" 
+                               readonly>
+                        <button class="btn btn-outline-secondary" 
+                                type="button" 
+                                onclick="copyToClipboard('{{ image.task_id }}')">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label text-muted">Block Number</label>
+                        <div class="fw-bold">{{ image.block_number }}</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted">Generated</label>
+                        <div class="fw-bold">{{ image.timestamp|date:"M d, Y" }}</div>
+                        <small class="text-muted">{{ image.timestamp|date:"H:i:s T" }}</small>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-muted">Miner Address</label>
+                    <div class="input-group">
+                        <input type="text" 
+                               class="form-control bg-dark text-light border-secondary" 
+                               value="{{ image.miner_address }}" 
+                               readonly>
+                        <a href="https://arbiscan.io/address/{{ image.miner_address }}" 
+                           target="_blank"
+                           class="btn btn-outline-secondary">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                {% if image.gas_used %}
+                <div class="mb-3">
+                    <label class="form-label text-muted">Gas Used</label>
+                    <div class="fw-bold">{{ image.gas_used|floatformat:0 }}</div>
+                </div>
+                {% endif %}
+                
+                <hr>
+                
+                <div class="mb-3">
+                    <label class="form-label text-muted">Discovered</label>
+                    <div class="fw-bold">{{ image.discovered_at|date:"M d, Y H:i" }}</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-muted">Status</label>
+                    <div>
+                        {% if image.is_accessible %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle me-1"></i>Accessible
+                            </span>
+                        {% else %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>Inaccessible
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Technical Details -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-cogs me-2"></i>Technical Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="small">
+                    <div class="row mb-2">
+                        <div class="col-6 text-muted">Network:</div>
+                        <div class="col-6">Arbitrum One</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6 text-muted">Protocol:</div>
+                        <div class="col-6">Arbius</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6 text-muted">Storage:</div>
+                        <div class="col-6">IPFS</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6 text-muted">Format:</div>
+                        <div class="col-6">PNG</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Navigation -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="d-flex justify-content-between">
+            <a href="{% url 'gallery:gallery' %}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Gallery
+            </a>
+            
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-share me-2"></i>Share
+                </button>
+                <ul class="dropdown-menu">
+                    <li>
+                        <a class="dropdown-item" href="#" onclick="shareUrl()">
+                            <i class="fas fa-link me-2"></i>Copy Link
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="https://twitter.com/intent/tweet?text=Check out this AI-generated image from Arbius!&url={{ request.build_absolute_uri }}" target="_blank">
+                            <i class="fab fa-twitter me-2"></i>Share on Twitter
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        showAlert('Copied to clipboard!', 'success');
+    }, function(err) {
+        console.error('Could not copy text: ', err);
+        showAlert('Failed to copy to clipboard', 'danger');
+    });
+}
+
+function shareUrl() {
+    const url = window.location.href;
+    copyToClipboard(url);
+}
+
+// Image loading error handling
+document.addEventListener('DOMContentLoaded', function() {
+    const img = document.querySelector('img[src="{{ image.image_url }}"]');
+    if (img) {
+        img.addEventListener('error', function() {
+            // Try alternative IPFS gateways
+            const alternativeGateways = [
+                'https://ipfs.io/ipfs',
+                'https://gateway.pinata.cloud/ipfs',
+                'https://cloudflare-ipfs.com/ipfs'
+            ];
+            
+            let currentSrc = this.src;
+            let currentGateway = currentSrc.split('/ipfs/')[0];
+            let cid = currentSrc.split('/ipfs/')[1];
+            
+            for (let gateway of alternativeGateways) {
+                if (currentSrc.indexOf(gateway) === -1) {
+                    this.src = `${gateway}/${cid}`;
+                    break;
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

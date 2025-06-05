@@ -1,0 +1,1 @@
+web: gunicorn arbius_gallery.wsgi --log-file - 

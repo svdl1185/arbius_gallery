@@ -1,0 +1,128 @@
+{% extends 'gallery/base.html' %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <h1 class="hero-title">AI Art on the Blockchain</h1>
+        <p class="hero-subtitle">
+            Discover stunning AI-generated artwork created through the Arbius protocol on Arbitrum. 
+            Each image represents a decentralized AI computation result stored permanently on the blockchain.
+        </p>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="stats-card">
+                <div class="stats-number">{{ total_images }}</div>
+                <div class="stats-label">Total Images</div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="stats-card">
+                <div class="stats-number">{{ accessible_images }}</div>
+                <div class="stats-label">Available Now</div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="stats-card">
+                <div class="stats-number">{{ pending_images }}</div>
+                <div class="stats-label">Processing</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Images Grid -->
+    {% if images %}
+        <div class="image-grid">
+            {% for image in images %}
+                <div class="image-card">
+                    <div class="image-wrapper">
+                        {% if image.is_accessible %}
+                            <img src="{{ image.image_url }}" alt="Arbius AI Art - {{ image.cid }}" loading="lazy">
+                            <div class="status-badge status-accessible">
+                                <i class="bi bi-check-circle-fill"></i> Live
+                            </div>
+                        {% else %}
+                            <div class="loading-placeholder">
+                                <div class="text-center">
+                                    <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+                                    <div>Processing...</div>
+                                </div>
+                            </div>
+                            <div class="status-badge status-pending">
+                                <i class="bi bi-clock-fill"></i> Pending
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="image-info">
+                        <div class="image-cid">{{ image.cid }}</div>
+                        <div class="image-meta">
+                            <span>
+                                <i class="bi bi-calendar3"></i>
+                                {{ image.timestamp|date:"M d, Y" }}
+                            </span>
+                            <a href="{% url 'gallery:image_detail' image.id %}" class="text-decoration-none">
+                                <i class="bi bi-arrow-right-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+            <nav aria-label="Gallery pagination">
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">
+                                <i class="bi bi-chevron-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                <i class="bi bi-chevron-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-image" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+            <h3>No images found</h3>
+            <p class="text-muted">The gallery is being populated with AI artwork from the Arbius network.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %} 

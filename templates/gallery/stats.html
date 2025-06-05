@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+
+{% block title %}Gallery Statistics - Arbius Gallery{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-4 mb-2">
+            <i class="fas fa-chart-bar text-primary me-3"></i>Gallery Statistics
+        </h1>
+        <p class="lead text-muted">
+            Analytics and insights about Arbius image generation
+        </p>
+    </div>
+</div>
+
+<!-- Overview Stats -->
+<div class="row mb-5">
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card text-center">
+            <div class="card-body">
+                <i class="fas fa-images fa-3x text-primary mb-3"></i>
+                <h3 class="text-primary">{{ total_images }}</h3>
+                <p class="text-muted mb-0">Total Images</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card text-center">
+            <div class="card-body">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h3 class="text-success">{{ accessible_images }}</h3>
+                <p class="text-muted mb-0">Accessible</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card text-center">
+            <div class="card-body">
+                <i class="fas fa-clock fa-3x text-warning mb-3"></i>
+                <h3 class="text-warning">{{ recent_images }}</h3>
+                <p class="text-muted mb-0">Last 24h</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card text-center">
+            <div class="card-body">
+                <i class="fas fa-percentage fa-3x text-info mb-3"></i>
+                <h3 class="text-info">
+                    {% if total_images > 0 %}
+                        {{ accessible_images|floatformat:0 }}
+                    {% else %}
+                        0
+                    {% endif %}%
+                </h3>
+                <p class="text-muted mb-0">Success Rate</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scan Status -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-search me-2"></i>Blockchain Scanning Status
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if scan_status %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="text-muted">Last Scanned Block</label>
+                            <div class="fs-4 fw-bold">{{ scan_status.last_scanned_block }}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="text-muted">Last Scan Time</label>
+                            <div class="fw-bold">{{ scan_status.last_scan_time|date:"M d, Y H:i:s" }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="text-muted">Current Status</label>
+                            <div>
+                                {% if scan_status.scan_in_progress %}
+                                    <span class="badge bg-warning fs-6">
+                                        <i class="fas fa-spinner fa-spin me-1"></i>Scanning in Progress
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-success fs-6">
+                                        <i class="fas fa-check-circle me-1"></i>Ready
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="text-muted">Images Found</label>
+                            <div class="fs-4 fw-bold">{{ scan_status.total_images_found }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No scanning performed yet</h5>
+                    <p class="text-muted">Click "Scan Blockchain" to start discovering images</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Network Information -->
+<div class="row mb-5">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-network-wired me-2"></i>Network Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-6 text-muted">Blockchain:</div>
+                        <div class="col-6 fw-bold">Arbitrum One</div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-6 text-muted">Protocol:</div>
+                        <div class="col-6 fw-bold">Arbius</div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-6 text-muted">Engine Contract:</div>
+                        <div class="col-6">
+                            <code class="small">{{ settings.ENGINE_CONTRACT_ADDRESS|truncatechars:20 }}</code>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-6 text-muted">Storage:</div>
+                        <div class="col-6 fw-bold">IPFS</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cogs me-2"></i>System Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-6 text-muted">Gallery Version:</div>
+                        <div class="col-6 fw-bold">1.0.0</div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-6 text-muted">Images per Page:</div>
+                        <div class="col-6 fw-bold">{{ settings.GALLERY_IMAGES_PER_PAGE }}</div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-6 text-muted">API Rate Limit:</div>
+                        <div class="col-6 fw-bold">5 req/sec</div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-6 text-muted">Auto Refresh:</div>
+                        <div class="col-6 fw-bold">Every 2 min</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history me-2"></i>Recent Activity
+                </h5>
+                <a href="{% url 'gallery:gallery' %}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-eye me-1"></i>View Gallery
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="border-end">
+                            <h4 class="text-primary">{{ recent_images }}</h4>
+                            <small class="text-muted">Images Today</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border-end">
+                            <h4 class="text-success">
+                                {% if recent_images > 0 %}
+                                    {{ recent_images|floatformat:1 }}/day
+                                {% else %}
+                                    0/day
+                                {% endif %}
+                            </h4>
+                            <small class="text-muted">Average Daily</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h4 class="text-info">
+                            {% if total_images > 0 %}
+                                {% widthratio accessible_images total_images 100 %}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </h4>
+                        <small class="text-muted">Success Rate</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="row">
+    <div class="col-12">
+        <div class="text-center">
+            <div class="btn-group" role="group">
+                <a href="{% url 'gallery:gallery' %}" class="btn btn-primary">
+                    <i class="fas fa-images me-2"></i>View Gallery
+                </a>
+                <button id="refreshStatsBtn" class="btn btn-outline-secondary">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh Stats
+                </button>
+                <button id="triggerScanBtn" class="btn btn-outline-info">
+                    <i class="fas fa-search me-2"></i>Trigger Scan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Refresh stats button
+    const refreshBtn = document.getElementById('refreshStatsBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            window.location.reload();
+        });
+    }
+    
+    // Trigger scan button
+    const triggerBtn = document.getElementById('triggerScanBtn');
+    if (triggerBtn) {
+        triggerBtn.addEventListener('click', function() {
+            document.getElementById('scanBtn').click();
+        });
+    }
+    
+    // Auto-refresh if scan is in progress
+    {% if scan_status.scan_in_progress %}
+    setTimeout(() => {
+        window.location.reload();
+    }, 30000); // 30 seconds
+    {% endif %}
+});
+</script>
+{% endblock %} 

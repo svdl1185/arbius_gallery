@@ -1,0 +1,167 @@
+{% extends 'gallery/base.html' %}
+
+{% block content %}
+<div class="container">
+    <!-- Image Detail Section -->
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="image-card">
+                <div class="image-wrapper" style="aspect-ratio: 1;">
+                    {% if image.is_accessible %}
+                        <img src="{{ image.image_url }}" 
+                             alt="Arbius AI Art - {{ image.cid }}" 
+                             class="w-100 h-100" style="object-fit: cover;">
+                        <div class="status-badge status-accessible">
+                            <i class="bi bi-check-circle-fill"></i> Available
+                        </div>
+                    {% else %}
+                        <div class="loading-placeholder">
+                            <div class="text-center">
+                                <div class="spinner-border mb-3" role="status"></div>
+                                <h5>Processing on IPFS</h5>
+                                <p class="text-muted">This AI artwork is being distributed across the IPFS network</p>
+                            </div>
+                        </div>
+                        <div class="status-badge status-pending">
+                            <i class="bi bi-clock-fill"></i> Processing
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="stats-card" style="padding: 2rem;">
+                <h3 class="mb-4">
+                    <i class="bi bi-info-circle"></i> Artwork Details
+                </h3>
+                
+                <div class="mb-4">
+                    <h6 class="text-muted mb-2">Content Identifier (CID)</h6>
+                    <div class="image-cid">{{ image.cid }}</div>
+                </div>
+                
+                <div class="mb-4">
+                    <h6 class="text-muted mb-2">Creation Date</h6>
+                    <p><i class="bi bi-calendar3"></i> {{ image.timestamp|date:"F d, Y" }}</p>
+                    <p><i class="bi bi-clock"></i> {{ image.timestamp|time:"H:i" }} UTC</p>
+                </div>
+                
+                <div class="mb-4">
+                    <h6 class="text-muted mb-2">Blockchain Details</h6>
+                    <p><i class="bi bi-layers"></i> Block: #{{ image.block_number|floatformat:"0" }}</p>
+                    <p><i class="bi bi-person"></i> Miner: <span class="font-monospace">{{ image.miner_address|truncatechars:20 }}</span></p>
+                </div>
+                
+                <div class="mb-4">
+                    <h6 class="text-muted mb-2">Status</h6>
+                    {% if image.is_accessible %}
+                        <span class="badge bg-success p-2">
+                            <i class="bi bi-check-circle-fill"></i> Available on IPFS
+                        </span>
+                    {% else %}
+                        <span class="badge bg-warning p-2">
+                            <i class="bi bi-clock-fill"></i> Propagating on IPFS
+                        </span>
+                    {% endif %}
+                </div>
+                
+                <div class="d-grid gap-2">
+                    {% if image.is_accessible %}
+                        <a href="{{ image.image_url }}" target="_blank" class="btn btn-primary">
+                            <i class="bi bi-download"></i> View Full Size
+                        </a>
+                    {% endif %}
+                    
+                    <a href="https://arbiscan.io/tx/{{ image.transaction_hash }}" 
+                       target="_blank" class="btn btn-outline-info">
+                        <i class="bi bi-box-arrow-up-right"></i> View on Arbiscan
+                    </a>
+                    
+                    <a href="{% url 'gallery:index' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Gallery
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Related Images -->
+    {% if related_images %}
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="stats-card" style="padding: 2rem;">
+                    <h4 class="mb-4">
+                        <i class="bi bi-grid-3x3-gap"></i> More AI Artwork
+                    </h4>
+                    
+                    <div class="row">
+                        {% for related in related_images %}
+                            <div class="col-lg-2 col-md-3 col-4 mb-3">
+                                <a href="{% url 'gallery:image_detail' related.id %}" class="text-decoration-none">
+                                    <div class="position-relative">
+                                        <img src="{{ related.image_url }}" 
+                                             alt="Related Arbius Art"
+                                             class="img-fluid rounded hover-scale"
+                                             style="aspect-ratio: 1; object-fit: cover; transition: transform 0.3s ease;">
+                                        <div class="position-absolute top-0 end-0 m-1">
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle-fill"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.btn-primary {
+    background: var(--primary-gradient);
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.btn-outline-info {
+    border-color: var(--card-border);
+    color: #06b6d4;
+}
+
+.btn-outline-info:hover {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    border-color: transparent;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.btn-outline-secondary {
+    border-color: var(--card-border);
+    color: var(--text-muted);
+}
+
+.btn-outline-secondary:hover {
+    background: var(--card-bg);
+    border-color: var(--card-border);
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.hover-scale:hover {
+    transform: scale(1.05);
+}
+
+.badge {
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %} 
