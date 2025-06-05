@@ -1,0 +1,26 @@
+name: Arbius Image Scanner
+
+on:
+  schedule:
+    # Run every minute
+    - cron: '* * * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Install Heroku CLI
+      run: |
+        curl https://cli-assets.heroku.com/install.sh | sh
+        
+    - name: Login to Heroku
+      run: |
+        echo "${{ secrets.HEROKU_API_KEY }}" | heroku auth:token
+        
+    - name: Scan for new Arbius images
+      run: |
+        heroku run python3 manage.py scan_arbius --blocks 50 --quiet --app ${{ secrets.HEROKU_APP_NAME }}
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }} 

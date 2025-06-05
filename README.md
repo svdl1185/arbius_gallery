@@ -5,7 +5,7 @@ A beautiful Django web application that automatically discovers and displays AI-
 ## Features
 
 - 🎨 **Beautiful Modern UI** - Dark theme with gradient effects and smooth animations
-- 🔍 **Automatic Discovery** - Scans the blockchain every minute for new AI artwork
+- 🔍 **Automatic Discovery** - Scans the blockchain every 10 minutes for new AI artwork
 - 🌐 **IPFS Integration** - Displays images stored on the decentralized IPFS network
 - 📊 **Real-time Stats** - Live statistics and gallery insights
 - 📱 **Responsive Design** - Works perfectly on desktop and mobile devices
@@ -13,7 +13,7 @@ A beautiful Django web application that automatically discovers and displays AI-
 
 ## Live Demo
 
-Visit the live gallery at: [Your Heroku URL will be here]
+Visit the live gallery at: https://arbius-6cdb53a42247.herokuapp.com/
 
 ## Quick Start
 
@@ -62,41 +62,48 @@ Visit the live gallery at: [Your Heroku URL will be here]
 - [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli) installed
 - Git repository initialized
 
-### Step 1: Create Heroku App
+### Option 1: Automated Deployment
+```bash
+./deploy.sh
+```
+Just run this script and follow the prompts!
+
+### Option 2: Manual Deployment
+
+#### Step 1: Create Heroku App
 ```bash
 heroku create your-app-name
 ```
 
-### Step 2: Add PostgreSQL Database
+#### Step 2: Add PostgreSQL Database
 ```bash
-heroku addons:create heroku-postgresql:mini
+heroku addons:create heroku-postgresql:essential-0
 ```
 
-### Step 3: Set Environment Variables
+#### Step 3: Set Environment Variables
 ```bash
 heroku config:set SECRET_KEY="your-secret-key-here"
 heroku config:set DEBUG=False
 heroku config:set ALLOWED_HOSTS="your-app-name.herokuapp.com"
 ```
 
-### Step 4: Deploy
+#### Step 4: Deploy
 ```bash
-git add .
-git commit -m "Deploy to Heroku"
+git branch -M main  # Ensure you're on main branch
 git push heroku main
 ```
 
-### Step 5: Run Migrations
+#### Step 5: Run Migrations
 ```bash
 heroku run python manage.py migrate
 ```
 
-### Step 6: Create Superuser (Optional)
+#### Step 6: Initial Scan
 ```bash
-heroku run python manage.py createsuperuser
+heroku run "python manage.py scan_arbius --blocks 1000"
 ```
 
-### Step 7: Set Up Automatic Scanning
+#### Step 7: Set Up Automatic Scanning
 
 Add the **Heroku Scheduler** add-on for automatic image discovery:
 
@@ -109,12 +116,14 @@ Then configure the scheduler:
 heroku addons:open scheduler
 ```
 
-Add this job to run **every minute**:
+Add this job to run **every 10 minutes** (minimum interval):
 ```bash
 python manage.py scan_arbius --blocks 100 --quiet
 ```
 
-This will automatically scan for new Arbius images every minute!
+⚠️ **Note**: Heroku Scheduler minimum interval is 10 minutes, not 1 minute.
+
+This will automatically scan for new Arbius images every 10 minutes!
 
 ## Environment Variables
 
@@ -157,6 +166,7 @@ python manage.py recheck_ipfs
 - **Blockchain**: Arbitrum network via Arbiscan API
 - **Storage**: IPFS decentralized storage
 - **Deployment**: Heroku with automatic scaling
+- **Scanning Frequency**: Every 10 minutes (Heroku Scheduler minimum)
 
 ## Contract Addresses
 
