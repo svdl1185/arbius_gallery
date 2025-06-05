@@ -176,4 +176,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**🎉 Enjoy exploring the beautiful world of AI-generated art on Arbius!** 
+**🎉 Enjoy exploring the beautiful world of AI-generated art on Arbius!** # Trigger workflow
