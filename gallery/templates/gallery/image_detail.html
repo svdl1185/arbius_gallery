@@ -39,12 +39,9 @@
                     </a>
                 </div>
                 
-                {% if image.clean_prompt or image.model_id %}
+                {% if image.clean_prompt %}
                 <div class="mb-4">
                     <h6 class="text-muted mb-2">AI Generation Details</h6>
-                    {% if image.model_id %}
-                        <p><i class="bi bi-cpu"></i> Model: <span class="font-monospace">{{ image.short_model_id }}</span></p>
-                    {% endif %}
                     {% if image.clean_prompt %}
                         <p><i class="bi bi-chat-square-text"></i> Prompt:</p>
                         <div class="prompt-display p-2 border rounded" style="background: var(--card-bg); max-height: 150px; overflow-y: auto;">

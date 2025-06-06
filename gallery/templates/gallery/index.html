@@ -59,12 +59,6 @@
                                 </div>
                             {% endif %}
                             <div class="image-meta">
-                                {% if image.model_id %}
-                                    <span>
-                                        <i class="bi bi-cpu"></i>
-                                        {{ image.short_model_id }}
-                                    </span>
-                                {% endif %}
                                 <span>
                                     <i class="bi bi-calendar3"></i>
                                     {{ image.timestamp|date:"M d, Y" }}
