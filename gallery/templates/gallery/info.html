@@ -18,12 +18,13 @@
                     <i class="bi bi-question-circle"></i> What is This Gallery?
                 </h2>
                 <div class="content">
-                    <p class="lead">This gallery showcases images generated through the <strong>Arbius protocol</strong> - a decentralized AI network running on the Arbitrum blockchain. Each image represents a unique AI computation performed by distributed miners around the world.</p>
+                    <p class="lead">This gallery showcases images generated through the <strong>Arbius protocol</strong> - a decentralized AI network running on the Arbitrum blockchain. Each image represents a unique AI computation performed by distributed miners using Proof of Useful Work (PoUW).</p>
                     
                     <div class="highlight-box">
                         <p><strong>Key Features:</strong></p>
                         <ul>
                             <li>🤖 <strong>Decentralized AI:</strong> No single company controls the image generation</li>
+                            <li>⚡ <strong>Proof of Useful Work:</strong> Miners mine normally until a prompt arrives, then perform useful AI computation</li>
                             <li>🔗 <strong>Blockchain Verified:</strong> Every image creation is recorded on Arbitrum</li>
                             <li>🌐 <strong>Permanent Storage:</strong> Images stored on IPFS for long-term availability</li>
                             <li>🔍 <strong>Transparent Process:</strong> All transactions and computations are publicly verifiable</li>
@@ -70,7 +71,7 @@
                         <div class="step-number">4</div>
                         <div class="step-content">
                             <h4>IPFS Storage</h4>
-                            <p>The image is stored on IPFS (InterPlanetary File System) for decentralized, permanent access.</p>
+                            <p>The image is stored on IPFS for decentralized, permanent access.</p>
                         </div>
                     </div>
                     
@@ -86,67 +87,54 @@
         </div>
     </div>
 
-    <!-- Technology Stack Section -->
+    <!-- Live Statistics Section -->
     <div class="row mb-5">
-        <div class="col-lg-6 mb-4">
-            <div class="info-card">
-                <h3 class="mb-3">
-                    <i class="bi bi-layers"></i> Technology Stack
-                </h3>
-                <div class="tech-list">
-                    <div class="tech-item">
-                        <div class="tech-icon">⚡</div>
-                        <div>
-                            <strong>Arbitrum Blockchain</strong>
-                            <p>Fast, low-cost Ethereum Layer 2 for smart contracts</p>
-                        </div>
-                    </div>
-                    <div class="tech-item">
-                        <div class="tech-icon">🤖</div>
-                        <div>
-                            <strong>Stable Diffusion AI</strong>
-                            <p>Open-source image generation models</p>
-                        </div>
-                    </div>
-                    <div class="tech-item">
-                        <div class="tech-icon">🌐</div>
-                        <div>
-                            <strong>IPFS Storage</strong>
-                            <p>Decentralized file storage network</p>
-                        </div>
-                    </div>
-                    <div class="tech-item">
-                        <div class="tech-icon">📊</div>
-                        <div>
-                            <strong>Smart Contracts</strong>
-                            <p>Automated payment and verification system</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-6 mb-4">
+        <div class="col-12">
             <div class="info-card">
                 <h3 class="mb-3">
                     <i class="bi bi-graph-up"></i> Live Statistics
                 </h3>
-                <div class="stats-grid">
+                <div class="stats-grid-expanded">
                     <div class="stat-item">
                         <div class="stat-number">{{ total_images }}</div>
                         <div class="stat-label">Total Images</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-number">{{ accessible_images }}</div>
-                        <div class="stat-label">Available Now</div>
+                        <div class="stat-label">Accessible Images</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">{{ pending_images }}</div>
-                        <div class="stat-label">Processing</div>
+                        <div class="stat-number">{{ images_this_week }}</div>
+                        <div class="stat-label">This Week</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">{{ accessibility_percentage }}%</div>
-                        <div class="stat-label">Success Rate</div>
+                        <div class="stat-number">{{ unique_models }}</div>
+                        <div class="stat-label">Different Models</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ unique_users }}</div>
+                        <div class="stat-label">Unique Users</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ unique_miners }}</div>
+                        <div class="stat-label">Active Miners</div>
+                    </div>
+                </div>
+                
+                <div class="popular-models mt-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="model-stat">
+                                <strong>Most Popular Model (All Time):</strong>
+                                <div class="model-id">{{ most_popular_model_short }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="model-stat">
+                                <strong>Most Popular Model (This Week):</strong>
+                                <div class="model-id">{{ most_popular_model_week_short }}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -176,9 +164,9 @@
                     </div>
                     <div class="col-md-4 mb-3">
                         <div class="benefit-card">
-                            <i class="bi bi-eye benefit-icon"></i>
-                            <h4>Transparency</h4>
-                            <p>All operations are recorded on the blockchain, making the process completely auditable.</p>
+                            <i class="bi bi-recycle benefit-icon"></i>
+                            <h4>Energy Efficient</h4>
+                            <p>Proof of Useful Work combines traditional mining with AI computation, making energy use more efficient and environmentally friendly.</p>
                         </div>
                     </div>
                     <div class="col-md-4 mb-3">
@@ -227,9 +215,6 @@
                         <div class="network-info">
                             <div class="info-item">
                                 <strong>Blockchain:</strong> Arbitrum One
-                            </div>
-                            <div class="info-item">
-                                <strong>Storage:</strong> IPFS (InterPlanetary File System)
                             </div>
                             <div class="info-item">
                                 <strong>AI Models:</strong> Community-driven and decentralized
@@ -360,40 +345,9 @@
     margin-bottom: 0;
 }
 
-.tech-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.tech-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-}
-
-.tech-icon {
-    font-size: 2rem;
-    width: 50px;
-    text-align: center;
-    flex-shrink: 0;
-}
-
-.tech-item strong {
-    color: #ffffff;
-    display: block;
-    margin-bottom: 0.25rem;
-}
-
-.tech-item p {
-    color: var(--text-muted);
-    margin-bottom: 0;
-    font-size: 0.9rem;
-}
-
-.stats-grid {
+.stats-grid-expanded {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
     margin-bottom: 1rem;
 }
@@ -419,6 +373,32 @@
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+.popular-models {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 1rem;
+}
+
+.model-stat {
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.model-stat strong {
+    color: #ffffff;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.model-id {
+    font-family: 'Monaco', monospace;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: #667eea;
 }
 
 .model-description {
@@ -528,8 +508,8 @@
         text-align: center;
     }
     
-    .stats-grid {
-        grid-template-columns: 1fr;
+    .stats-grid-expanded {
+        grid-template-columns: repeat(2, 1fr);
     }
     
     .link-buttons {
@@ -541,6 +521,12 @@
         width: 100%;
         max-width: 300px;
         justify-content: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .stats-grid-expanded {
+        grid-template-columns: 1fr;
     }
 }
 </style>

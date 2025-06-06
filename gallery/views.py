@@ -60,12 +60,26 @@ def info(request):
     # Calculate comprehensive stats
     total_images = ArbiusImage.objects.count()
     accessible_images = ArbiusImage.objects.filter(is_accessible=True).count()
-    pending_images = total_images - accessible_images
     
-    # Calculate accessibility percentage
-    accessibility_percentage = round(
-        (accessible_images / total_images * 100) if total_images > 0 else 0, 1
-    )
+    # Calculate new statistics
+    unique_models = ArbiusImage.objects.exclude(model_id__isnull=True).exclude(model_id__exact='').values('model_id').distinct().count()
+    unique_users = ArbiusImage.objects.values('owner_address').distinct().count()
+    unique_miners = ArbiusImage.objects.values('miner_address').distinct().count()
+    
+    # Most popular model overall
+    from django.db.models import Count
+    most_popular_model = ArbiusImage.objects.exclude(model_id__isnull=True).exclude(model_id__exact='').values('model_id').annotate(count=Count('model_id')).order_by('-count').first()
+    most_popular_model_id = most_popular_model['model_id'] if most_popular_model else None
+    most_popular_model_short = f"{most_popular_model_id[:8]}...{most_popular_model_id[-8:]}" if most_popular_model_id and len(most_popular_model_id) > 16 else (most_popular_model_id or "N/A")
+    
+    # Most popular model this week
+    one_week_ago = timezone.now() - timedelta(weeks=1)
+    most_popular_model_week = ArbiusImage.objects.filter(timestamp__gte=one_week_ago).exclude(model_id__isnull=True).exclude(model_id__exact='').values('model_id').annotate(count=Count('model_id')).order_by('-count').first()
+    most_popular_model_week_id = most_popular_model_week['model_id'] if most_popular_model_week else None
+    most_popular_model_week_short = f"{most_popular_model_week_id[:8]}...{most_popular_model_week_id[-8:]}" if most_popular_model_week_id and len(most_popular_model_week_id) > 16 else (most_popular_model_week_id or "N/A")
+    
+    # Images generated this week
+    images_this_week = ArbiusImage.objects.filter(timestamp__gte=one_week_ago).count()
     
     # Get scan status info
     scan_status = ScanStatus.objects.first()
@@ -78,8 +92,12 @@ def info(request):
     context = {
         'total_images': total_images,
         'accessible_images': accessible_images,
-        'pending_images': pending_images,
-        'accessibility_percentage': accessibility_percentage,
+        'unique_models': unique_models,
+        'unique_users': unique_users,
+        'unique_miners': unique_miners,
+        'most_popular_model_short': most_popular_model_short,
+        'most_popular_model_week_short': most_popular_model_week_short,
+        'images_this_week': images_this_week,
         'last_scan_time': last_scan_time,
         'last_scanned_block': last_scanned_block,
         'recent_images': recent_images,
