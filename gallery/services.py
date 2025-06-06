@@ -367,11 +367,11 @@ class ArbitrumScanner:
         # Use adaptive range based on scan size - larger scans need more lookback
         block_range = end_block - start_block
         if block_range <= 1000:
-            lookback_blocks = 5000  # Standard lookback for small ranges
+            lookback_blocks = 20000  # Increased from 5000 to 20000
         elif block_range <= 5000:
-            lookback_blocks = 10000  # More lookback for medium ranges
+            lookback_blocks = 50000  # Increased from 10000 to 50000
         else:
-            lookback_blocks = 20000  # Even more lookback for large ranges (deep scans)
+            lookback_blocks = 100000  # Increased from 20000 to 100000
             
         task_range_start = max(0, start_block - lookback_blocks)
         print(f"   Getting task information from broader range: {task_range_start} to {end_block} (lookback: {lookback_blocks} blocks)")
@@ -421,10 +421,12 @@ class ArbitrumScanner:
                         prompt = task_data.get('prompt')
                         input_parameters = task_data.get('input_parameters')
                         
-                        # ONLY save if we have a prompt (indicating it's a real image)
-                        if prompt and prompt.strip():
-                            # Check IPFS accessibility
-                            is_accessible, gateway = self.check_ipfs_accessibility(cid)
+                        # Check IPFS accessibility first
+                        is_accessible, gateway = self.check_ipfs_accessibility(cid)
+                        
+                        if is_accessible:
+                            # Save image regardless of whether we have a prompt
+                            # We can try to fetch prompt later via background tasks
                             
                             # Construct proper IPFS URLs
                             ipfs_url = f"{self.ipfs_gateways[0]}{cid}"
@@ -448,14 +450,17 @@ class ArbitrumScanner:
                                 is_accessible=is_accessible,
                                 ipfs_gateway=gateway or '',
                                 model_id=model_id,
-                                prompt=prompt,
+                                prompt=prompt or '',  # Store empty string if no prompt
                                 input_parameters=input_parameters
                             )
                             new_images.append(image)
                             
-                            print(f"      ✅ Saved image with prompt: \"{prompt[:50]}...\"")
+                            if prompt and prompt.strip():
+                                print(f"      ✅ Saved image with prompt: \"{prompt[:50]}...\"")
+                            else:
+                                print(f"      ✅ Saved image (no prompt found yet - will retry later)")
                         else:
-                            print(f"      ⏭️ Skipping {cid[:20]}... (no prompt - likely not an image)")
+                            print(f"      ⏭️ Skipping {cid[:20]}... (not accessible via IPFS)")
                         
             except Exception as e:
                 print(f"   Error processing single transaction {tx['hash']}: {e}")
