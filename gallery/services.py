@@ -157,7 +157,13 @@ class ArbitrumScanner:
                 response = requests.get(f"https://api.arbiscan.io/api?module=proxy&action=eth_getTransactionByHash&txhash={log['transactionHash']}&apikey={self.api_key}")
                 if response.status_code == 200:
                     tx_data = response.json()
-                    if tx_data.get('result') and tx_data['result'].get('input'):
+                    
+                    # Validate response structure before proceeding
+                    if (isinstance(tx_data, dict) and 
+                        tx_data.get('result') and 
+                        isinstance(tx_data['result'], dict) and 
+                        tx_data['result'].get('input')):
+                        
                         tx_input = tx_data['result']['input']
                         
                         # Parse the transaction input to extract the task input parameter
@@ -190,6 +196,12 @@ class ArbitrumScanner:
                                             
                                 except (ValueError, json.JSONDecodeError) as e:
                                     logger.debug(f"Could not parse input data from transaction {log['transactionHash']}: {e}")
+                    else:
+                        # Handle API error responses
+                        if isinstance(tx_data, dict) and tx_data.get('result') and isinstance(tx_data['result'], str):
+                            logger.debug(f"API returned error for transaction {log['transactionHash']}: {tx_data['result']}")
+                        else:
+                            logger.debug(f"Invalid response structure for transaction {log['transactionHash']}")
                             
             except Exception as e:
                 logger.warning(f"Could not get transaction data for task {task_id}: {e}")
