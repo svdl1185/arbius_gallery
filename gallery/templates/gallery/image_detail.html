@@ -11,9 +11,6 @@
                         <img src="{{ image.image_url }}" 
                              alt="Arbius AI Art - {{ image.cid }}" 
                              class="w-100 h-100" style="object-fit: cover;">
-                        <div class="status-badge status-accessible">
-                            <i class="bi bi-check-circle-fill"></i> Available
-                        </div>
                     {% else %}
                         <div class="loading-placeholder">
                             <div class="text-center">
@@ -21,9 +18,6 @@
                                 <h5>Processing on IPFS</h5>
                                 <p class="text-muted">This AI artwork is being distributed across the IPFS network</p>
                             </div>
-                        </div>
-                        <div class="status-badge status-pending">
-                            <i class="bi bi-clock-fill"></i> Processing
                         </div>
                     {% endif %}
                 </div>
@@ -37,8 +31,12 @@
                 </h3>
                 
                 <div class="mb-4">
-                    <h6 class="text-muted mb-2">Content Identifier (CID)</h6>
-                    <div class="image-cid">{{ image.cid }}</div>
+                    <h6 class="text-muted mb-2">IPFS Content</h6>
+                    <a href="https://ipfs.arbius.org/ipfs/{{ image.cid }}/out-1.png" target="_blank" class="text-decoration-none">
+                        <div class="image-cid" style="cursor: pointer; border: 1px solid var(--card-border);">
+                            <i class="bi bi-box-arrow-up-right"></i> {{ image.cid }}
+                        </div>
+                    </a>
                 </div>
                 
                 <div class="mb-4">
@@ -51,19 +49,7 @@
                     <h6 class="text-muted mb-2">Blockchain Details</h6>
                     <p><i class="bi bi-layers"></i> Block: #{{ image.block_number|floatformat:"0" }}</p>
                     <p><i class="bi bi-person"></i> Miner: <span class="font-monospace">{{ image.miner_address|truncatechars:20 }}</span></p>
-                </div>
-                
-                <div class="mb-4">
-                    <h6 class="text-muted mb-2">Status</h6>
-                    {% if image.is_accessible %}
-                        <span class="badge bg-success p-2">
-                            <i class="bi bi-check-circle-fill"></i> Available on IPFS
-                        </span>
-                    {% else %}
-                        <span class="badge bg-warning p-2">
-                            <i class="bi bi-clock-fill"></i> Propagating on IPFS
-                        </span>
-                    {% endif %}
+                    <p><i class="bi bi-wallet2"></i> Submitter: <span class="font-monospace">{{ image.miner_address|truncatechars:20 }}</span></p>
                 </div>
                 
                 <div class="d-grid gap-2">

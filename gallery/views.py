@@ -1,6 +1,8 @@
 from django.shortcuts import render, get_object_or_404
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.utils import timezone
+from datetime import timedelta
 from .models import ArbiusImage, ScanStatus
 
 
@@ -11,8 +13,13 @@ def index(request):
     
     # Calculate stats for display
     total_images = ArbiusImage.objects.count()
-    accessible_images = ArbiusImage.objects.filter(is_accessible=True).count()
-    pending_images = total_images - accessible_images
+    
+    # Count unique wallets that have generated images (using miner_address since it's populated)
+    unique_wallets = ArbiusImage.objects.values('miner_address').distinct().count()
+    
+    # Count new images in the last 24 hours
+    twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
+    new_images_24h = ArbiusImage.objects.filter(timestamp__gte=twenty_four_hours_ago).count()
     
     # Pagination
     paginator = Paginator(images, 12)  # Show 12 images per page
@@ -24,8 +31,8 @@ def index(request):
         'page_obj': page_obj,
         'is_paginated': page_obj.has_other_pages(),
         'total_images': total_images,
-        'accessible_images': accessible_images,
-        'pending_images': pending_images,
+        'unique_wallets': unique_wallets,
+        'new_images_24h': new_images_24h,
     }
     
     return render(request, 'gallery/index.html', context)

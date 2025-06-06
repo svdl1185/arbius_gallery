@@ -21,14 +21,14 @@
         </div>
         <div class="col-md-4 mb-3">
             <div class="stats-card">
-                <div class="stats-number">{{ accessible_images }}</div>
-                <div class="stats-label">Available Now</div>
+                <div class="stats-number">{{ unique_wallets }}</div>
+                <div class="stats-label">Total Wallets</div>
             </div>
         </div>
         <div class="col-md-4 mb-3">
             <div class="stats-card">
-                <div class="stats-number">{{ pending_images }}</div>
-                <div class="stats-label">Processing</div>
+                <div class="stats-number">{{ new_images_24h }}</div>
+                <div class="stats-label">New (24h)</div>
             </div>
         </div>
     </div>
@@ -37,39 +37,32 @@
     {% if images %}
         <div class="image-grid">
             {% for image in images %}
-                <div class="image-card">
-                    <div class="image-wrapper">
-                        {% if image.is_accessible %}
-                            <img src="{{ image.image_url }}" alt="Arbius AI Art - {{ image.cid }}" loading="lazy">
-                            <div class="status-badge status-accessible">
-                                <i class="bi bi-check-circle-fill"></i> Live
-                            </div>
-                        {% else %}
-                            <div class="loading-placeholder">
-                                <div class="text-center">
-                                    <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
-                                    <div>Processing...</div>
+                <a href="{% url 'gallery:image_detail' image.id %}" class="text-decoration-none">
+                    <div class="image-card">
+                        <div class="image-wrapper">
+                            {% if image.is_accessible %}
+                                <img src="{{ image.image_url }}" alt="Arbius AI Art - {{ image.cid }}" loading="lazy">
+                            {% else %}
+                                <div class="loading-placeholder">
+                                    <div class="text-center">
+                                        <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+                                        <div>Processing...</div>
+                                    </div>
                                 </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="image-info">
+                            <div class="image-cid">{{ image.cid }}</div>
+                            <div class="image-meta">
+                                <span>
+                                    <i class="bi bi-calendar3"></i>
+                                    {{ image.timestamp|date:"M d, Y" }}
+                                </span>
                             </div>
-                            <div class="status-badge status-pending">
-                                <i class="bi bi-clock-fill"></i> Pending
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="image-info">
-                        <div class="image-cid">{{ image.cid }}</div>
-                        <div class="image-meta">
-                            <span>
-                                <i class="bi bi-calendar3"></i>
-                                {{ image.timestamp|date:"M d, Y" }}
-                            </span>
-                            <a href="{% url 'gallery:image_detail' image.id %}" class="text-decoration-none">
-                                <i class="bi bi-arrow-right-circle"></i>
-                            </a>
                         </div>
                     </div>
-                </div>
+                </a>
             {% endfor %}
         </div>
 
