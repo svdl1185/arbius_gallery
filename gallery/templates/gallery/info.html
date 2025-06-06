@@ -1,0 +1,531 @@
+{% extends 'gallery/base.html' %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <h1 class="hero-title">About This Gallery</h1>
+        <p class="hero-subtitle">
+            Learn how decentralized AI creates and stores images permanently on the blockchain
+        </p>
+    </div>
+
+    <!-- What is This Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="info-card">
+                <h2 class="section-title">
+                    <i class="bi bi-question-circle"></i> What is This Gallery?
+                </h2>
+                <div class="content">
+                    <p class="lead">This gallery showcases images generated through the <strong>Arbius protocol</strong> - a decentralized AI network running on the Arbitrum blockchain. Each image represents a unique AI computation performed by distributed miners around the world.</p>
+                    
+                    <div class="highlight-box">
+                        <p><strong>Key Features:</strong></p>
+                        <ul>
+                            <li>🤖 <strong>Decentralized AI:</strong> No single company controls the image generation</li>
+                            <li>🔗 <strong>Blockchain Verified:</strong> Every image creation is recorded on Arbitrum</li>
+                            <li>🌐 <strong>Permanent Storage:</strong> Images stored on IPFS for long-term availability</li>
+                            <li>🔍 <strong>Transparent Process:</strong> All transactions and computations are publicly verifiable</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- How It Works Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="info-card">
+                <h2 class="section-title">
+                    <i class="bi bi-gear"></i> How It Works
+                </h2>
+                <div class="process-flow">
+                    <div class="process-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>Request Submitted</h4>
+                            <p>A user submits an AI image generation request to the Arbius protocol, including their prompt and payment.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="process-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>Miner Processing</h4>
+                            <p>Decentralized miners compete to fulfill the request using their AI models and computing power.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="process-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>Result Submission</h4>
+                            <p>The winning miner submits the generated image and receives payment through the blockchain.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="process-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h4>IPFS Storage</h4>
+                            <p>The image is stored on IPFS (InterPlanetary File System) for decentralized, permanent access.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="process-step">
+                        <div class="step-number">5</div>
+                        <div class="step-content">
+                            <h4>Gallery Discovery</h4>
+                            <p>Our system automatically discovers and displays new images by monitoring blockchain events.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technology Stack Section -->
+    <div class="row mb-5">
+        <div class="col-lg-6 mb-4">
+            <div class="info-card">
+                <h3 class="mb-3">
+                    <i class="bi bi-layers"></i> Technology Stack
+                </h3>
+                <div class="tech-list">
+                    <div class="tech-item">
+                        <div class="tech-icon">⚡</div>
+                        <div>
+                            <strong>Arbitrum Blockchain</strong>
+                            <p>Fast, low-cost Ethereum Layer 2 for smart contracts</p>
+                        </div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-icon">🤖</div>
+                        <div>
+                            <strong>Stable Diffusion AI</strong>
+                            <p>Open-source image generation models</p>
+                        </div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-icon">🌐</div>
+                        <div>
+                            <strong>IPFS Storage</strong>
+                            <p>Decentralized file storage network</p>
+                        </div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-icon">📊</div>
+                        <div>
+                            <strong>Smart Contracts</strong>
+                            <p>Automated payment and verification system</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="info-card">
+                <h3 class="mb-3">
+                    <i class="bi bi-graph-up"></i> Live Statistics
+                </h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number">{{ total_images }}</div>
+                        <div class="stat-label">Total Images</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ accessible_images }}</div>
+                        <div class="stat-label">Available Now</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ pending_images }}</div>
+                        <div class="stat-label">Processing</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ accessibility_percentage }}%</div>
+                        <div class="stat-label">Success Rate</div>
+                    </div>
+                </div>
+                
+                {% if last_scan_time %}
+                    <div class="mt-3 text-muted small">
+                        <i class="bi bi-clock"></i> Last updated: {{ last_scan_time|date:"M d, Y H:i" }} UTC
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Why Decentralized AI Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="info-card">
+                <h2 class="section-title">
+                    <i class="bi bi-shield-check"></i> Why Decentralized AI Matters
+                </h2>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="benefit-card">
+                            <i class="bi bi-unlock benefit-icon"></i>
+                            <h4>Open Access</h4>
+                            <p>No gatekeepers or restrictions. Anyone can participate in the network as a user or miner.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="benefit-card">
+                            <i class="bi bi-eye benefit-icon"></i>
+                            <h4>Transparency</h4>
+                            <p>All operations are recorded on the blockchain, making the process completely auditable.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="benefit-card">
+                            <i class="bi bi-infinity benefit-icon"></i>
+                            <h4>Permanence</h4>
+                            <p>Images are stored permanently on IPFS, ensuring they remain accessible for years to come.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technical Details Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="info-card">
+                <h2 class="section-title">
+                    <i class="bi bi-code-square"></i> Technical Details
+                </h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h4>Smart Contract Addresses</h4>
+                        <div class="contract-info">
+                            <div class="contract-item">
+                                <strong>Engine Contract:</strong>
+                                <div class="contract-address">0x9b51Ef044d3486A1fB0A2D55A6e0CeeAdd323E66</div>
+                                <a href="https://arbiscan.io/address/0x9b51Ef044d3486A1fB0A2D55A6e0CeeAdd323E66" target="_blank" class="contract-link">
+                                    <i class="bi bi-box-arrow-up-right"></i> View on Arbiscan
+                                </a>
+                            </div>
+                            
+                            <div class="contract-item mt-3">
+                                <strong>Router Contract:</strong>
+                                <div class="contract-address">0xecAba4E6a4bC1E3DE3e996a8B2c89e8B0626C9a1</div>
+                                <a href="https://arbiscan.io/address/0xecAba4E6a4bC1E3DE3e996a8B2c89e8B0626C9a1" target="_blank" class="contract-link">
+                                    <i class="bi bi-box-arrow-up-right"></i> View on Arbiscan
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h4>Network Information</h4>
+                        <div class="network-info">
+                            <div class="info-item">
+                                <strong>Blockchain:</strong> Arbitrum One
+                            </div>
+                            <div class="info-item">
+                                <strong>Storage:</strong> IPFS (InterPlanetary File System)
+                            </div>
+                            <div class="info-item">
+                                <strong>AI Models:</strong> Stable Diffusion variants
+                            </div>
+                            {% if last_scanned_block %}
+                                <div class="info-item">
+                                    <strong>Latest Block:</strong> #{{ last_scanned_block|floatformat:"0" }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Learn More Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="info-card text-center">
+                <h2 class="section-title">
+                    <i class="bi bi-book"></i> Learn More
+                </h2>
+                <p class="mb-4">Ready to explore the world of decentralized AI? Check out these resources:</p>
+                
+                <div class="link-buttons">
+                    <a href="https://arbius.ai" target="_blank" class="info-btn">
+                        <i class="bi bi-globe"></i> Official Arbius Website
+                    </a>
+                    <a href="https://arbiusplayground.com/" target="_blank" class="info-btn">
+                        <i class="bi bi-play-circle"></i> AI Playground
+                    </a>
+                    <a href="https://github.com/semperai/arbius" target="_blank" class="info-btn">
+                        <i class="bi bi-github"></i> View Source Code
+                    </a>
+                    <a href="https://docs.arbius.ai" target="_blank" class="info-btn">
+                        <i class="bi bi-file-text"></i> Documentation
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.info-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    color: #ffffff;
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.section-title i {
+    color: #667eea;
+    margin-right: 0.5rem;
+}
+
+.content {
+    color: var(--text-muted);
+}
+
+.lead {
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.highlight-box {
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.highlight-box ul {
+    margin-bottom: 0;
+}
+
+.highlight-box li {
+    margin-bottom: 0.5rem;
+}
+
+.process-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.process-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.step-number {
+    background: var(--primary-gradient);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.step-content h4 {
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+}
+
+.step-content p {
+    color: var(--text-muted);
+    margin-bottom: 0;
+}
+
+.tech-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.tech-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.tech-icon {
+    font-size: 2rem;
+    width: 50px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.tech-item strong {
+    color: #ffffff;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.tech-item p {
+    color: var(--text-muted);
+    margin-bottom: 0;
+    font-size: 0.9rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    background: var(--secondary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-label {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.benefit-card {
+    text-align: center;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    height: 100%;
+}
+
+.benefit-icon {
+    font-size: 3rem;
+    color: #667eea;
+    margin-bottom: 1rem;
+}
+
+.benefit-card h4 {
+    color: #ffffff;
+    margin-bottom: 1rem;
+}
+
+.benefit-card p {
+    color: var(--text-muted);
+    margin-bottom: 0;
+    font-size: 0.9rem;
+}
+
+.contract-info, .network-info {
+    color: var(--text-muted);
+}
+
+.contract-item {
+    margin-bottom: 1rem;
+}
+
+.contract-address {
+    font-family: 'Monaco', monospace;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 0.5rem 0;
+    font-size: 0.8rem;
+    word-break: break-all;
+}
+
+.contract-link {
+    color: #667eea;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.contract-link:hover {
+    color: #764ba2;
+}
+
+.info-item {
+    margin-bottom: 0.75rem;
+}
+
+.info-item strong {
+    color: #ffffff;
+}
+
+.link-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.info-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: #ffffff;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.info-btn:hover {
+    background: var(--primary-gradient);
+    border-color: transparent;
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .process-step {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .link-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .info-btn {
+        width: 100%;
+        max-width: 300px;
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %} 

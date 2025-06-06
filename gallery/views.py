@@ -55,8 +55,8 @@ def image_detail(request, image_id):
     return render(request, 'gallery/image_detail.html', context)
 
 
-def stats(request):
-    """Statistics and information page"""
+def info(request):
+    """Information page about the Arbius gallery and process"""
     # Calculate comprehensive stats
     total_images = ArbiusImage.objects.count()
     accessible_images = ArbiusImage.objects.filter(is_accessible=True).count()
@@ -85,4 +85,4 @@ def stats(request):
         'recent_images': recent_images,
     }
     
-    return render(request, 'gallery/stats.html', context)
+    return render(request, 'gallery/info.html', context)
