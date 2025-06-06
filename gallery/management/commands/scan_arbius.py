@@ -17,6 +17,11 @@ class Command(BaseCommand):
             help='Number of recent blocks to scan (default: 100)'
         )
         parser.add_argument(
+            '--minutes',
+            type=int,
+            help='Scan the last N minutes of blocks for images with prompts only'
+        )
+        parser.add_argument(
             '--quiet',
             action='store_true',
             help='Suppress output (for scheduled runs)'
@@ -26,11 +31,17 @@ class Command(BaseCommand):
         scanner = ArbitrumScanner()
         
         if not options['quiet']:
-            self.stdout.write('🔍 Scanning for new Arbius images...')
+            if options['minutes']:
+                self.stdout.write(f'🔍 Scanning last {options["minutes"]} minutes for images with prompts...')
+            else:
+                self.stdout.write('🔍 Scanning for new Arbius images...')
         
         try:
-            # Scan recent blocks for new images
-            new_images = scanner.scan_recent_blocks(options['blocks'])
+            # Choose scanning method based on arguments
+            if options['minutes']:
+                new_images = scanner.scan_recent_minutes(options['minutes'])
+            else:
+                new_images = scanner.scan_recent_blocks(options['blocks'])
             
             if new_images:
                 if not options['quiet']:
@@ -39,7 +50,8 @@ class Command(BaseCommand):
                     )
                     for image in new_images:
                         accessible = "✅" if image.is_accessible else "⏳"
-                        self.stdout.write(f'   {accessible} {image.cid}')
+                        prompt_preview = image.prompt[:30] + "..." if image.prompt and len(image.prompt) > 30 else image.prompt or "No prompt"
+                        self.stdout.write(f'   {accessible} {image.cid[:20]}... "{prompt_preview}"')
                 else:
                     logger.info(f'Found {len(new_images)} new Arbius images')
             else:
@@ -50,9 +62,10 @@ class Command(BaseCommand):
             # Update stats
             total_images = ArbiusImage.objects.count()
             accessible_images = ArbiusImage.objects.filter(is_accessible=True).count()
+            images_with_prompts = ArbiusImage.objects.filter(prompt__isnull=False).exclude(prompt='').count()
             
             if not options['quiet']:
-                self.stdout.write(f'📊 Total images: {total_images} ({accessible_images} accessible)')
+                self.stdout.write(f'📊 Total images: {total_images} ({accessible_images} accessible, {images_with_prompts} with prompts)')
             
         except Exception as e:
             error_msg = f'Error scanning for images: {e}'

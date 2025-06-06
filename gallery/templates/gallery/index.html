@@ -53,7 +53,19 @@
                         
                         <div class="image-info">
                             <div class="image-cid">{{ image.cid }}</div>
+                            {% if image.prompt %}
+                                <div class="image-prompt">
+                                    <i class="bi bi-chat-square-text"></i>
+                                    "{{ image.prompt|truncatechars:80 }}"
+                                </div>
+                            {% endif %}
                             <div class="image-meta">
+                                {% if image.model_id %}
+                                    <span>
+                                        <i class="bi bi-cpu"></i>
+                                        {{ image.short_model_id }}
+                                    </span>
+                                {% endif %}
                                 <span>
                                     <i class="bi bi-calendar3"></i>
                                     {{ image.timestamp|date:"M d, Y" }}

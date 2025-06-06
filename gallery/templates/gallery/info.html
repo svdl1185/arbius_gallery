@@ -232,7 +232,10 @@
                                 <strong>Storage:</strong> IPFS (InterPlanetary File System)
                             </div>
                             <div class="info-item">
-                                <strong>AI Models:</strong> Stable Diffusion variants
+                                <strong>AI Models:</strong> Community-driven and decentralized
+                                <div class="model-description">
+                                    <small>Anyone can register and use their own AI models on the Arbius playground. This creates a diverse ecosystem where users can choose from various Stable Diffusion variants, custom fine-tuned models, and experimental approaches contributed by the community.</small>
+                                </div>
                             </div>
                             {% if last_scanned_block %}
                                 <div class="info-item">
@@ -416,6 +419,19 @@
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+.model-description {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(102, 126, 234, 0.05);
+    border-left: 3px solid #667eea;
+    border-radius: 0 8px 8px 0;
+}
+
+.model-description small {
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.4;
 }
 
 .benefit-card {

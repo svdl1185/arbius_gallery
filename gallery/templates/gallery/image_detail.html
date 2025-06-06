@@ -39,6 +39,21 @@
                     </a>
                 </div>
                 
+                {% if image.prompt or image.model_id %}
+                <div class="mb-4">
+                    <h6 class="text-muted mb-2">AI Generation Details</h6>
+                    {% if image.model_id %}
+                        <p><i class="bi bi-cpu"></i> Model: <span class="font-monospace">{{ image.short_model_id }}</span></p>
+                    {% endif %}
+                    {% if image.prompt %}
+                        <p><i class="bi bi-chat-square-text"></i> Prompt:</p>
+                        <div class="prompt-display p-2 border rounded" style="background: var(--card-bg); max-height: 150px; overflow-y: auto;">
+                            "{{ image.prompt }}"
+                        </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
                 <div class="mb-4">
                     <h6 class="text-muted mb-2">Creation Date</h6>
                     <p><i class="bi bi-calendar3"></i> {{ image.timestamp|date:"F d, Y" }}</p>

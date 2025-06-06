@@ -16,6 +16,11 @@ class ArbiusImage(models.Model):
     ipfs_url = models.URLField()
     image_url = models.URLField()
     
+    # AI Generation details
+    model_id = models.CharField(max_length=66, blank=True, null=True, help_text="The AI model used to generate this image")
+    prompt = models.TextField(blank=True, null=True, help_text="The prompt used to generate this image")
+    input_parameters = models.JSONField(blank=True, null=True, help_text="Full input parameters including prompt and other settings")
+    
     # Metadata
     miner_address = models.CharField(max_length=42)
     owner_address = models.CharField(max_length=42, null=True, blank=True)
@@ -47,6 +52,13 @@ class ArbiusImage(models.Model):
     def short_tx_hash(self):
         """Return a shortened version of the transaction hash for display"""
         return f"{self.transaction_hash[:10]}...{self.transaction_hash[-8:]}"
+    
+    @property
+    def short_model_id(self):
+        """Return a shortened version of the model ID for display"""
+        if not self.model_id:
+            return "Unknown Model"
+        return f"{self.model_id[:8]}...{self.model_id[-8:]}" if len(self.model_id) > 16 else self.model_id
 
 
 class ScanStatus(models.Model):

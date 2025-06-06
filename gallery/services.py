@@ -2,6 +2,7 @@ import requests
 import time
 import re
 import base58
+import json
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.utils import timezone
@@ -86,8 +87,130 @@ class ArbitrumScanner:
             print(f"Error getting transactions: {e}")
             return []
     
+    def get_contract_logs(self, start_block, end_block, topic):
+        """Get event logs from the engine contract in a block range"""
+        try:
+            params = {
+                'module': 'logs',
+                'action': 'getLogs',
+                'address': self.engine_address,
+                'topic0': topic,
+                'fromBlock': start_block,
+                'toBlock': end_block,
+                'apikey': self.api_key
+            }
+            
+            response = requests.get(self.base_url, params=params, timeout=30)
+            data = response.json()
+            
+            if data.get('status') == '1':
+                return data.get('result', [])
+            else:
+                print(f"API Error getting logs: {data}")
+                return []
+                
+        except Exception as e:
+            print(f"Error getting event logs: {e}")
+            return []
+    
+    def parse_task_submitted_event(self, log):
+        """Parse TaskSubmitted event log to extract task information"""
+        try:
+            # TaskSubmitted event structure: TaskSubmitted(bytes32 indexed taskid, address indexed submitter, bytes32 indexed model, uint256 fee, bytes input)
+            task_id = log['topics'][1] if len(log['topics']) > 1 else None
+            submitter = '0x' + log['topics'][2][-40:] if len(log['topics']) > 2 else None  # Get address from topic
+            model_id = log['topics'][3] if len(log['topics']) > 3 else None
+            
+            # Parse the data for fee and input
+            data = log['data'][2:]  # Remove '0x' prefix
+            
+            # Fee is the first 32 bytes (64 hex chars)
+            fee_hex = data[:64] if len(data) >= 64 else '0'
+            fee = int(fee_hex, 16) if fee_hex != '0' else 0
+            
+            # Input data starts after fee and offset information
+            # The input is hex-encoded JSON
+            input_data = None
+            prompt = None
+            input_parameters = None
+            
+            try:
+                # Skip fee (64 chars) and two offset fields (64 chars each) = 192 chars
+                if len(data) > 192:
+                    # Find the input data length and content
+                    input_start = 192
+                    # Next 64 chars are the length of the input data
+                    input_length_hex = data[input_start:input_start+64]
+                    input_length = int(input_length_hex, 16) * 2  # Convert to hex chars
+                    
+                    # Extract the actual input data
+                    input_hex_start = input_start + 64
+                    input_hex = data[input_hex_start:input_hex_start+input_length]
+                    
+                    # Convert hex to bytes, then to string
+                    input_bytes = bytes.fromhex(input_hex)
+                    input_string = input_bytes.decode('utf-8', errors='ignore')
+                    
+                    # Parse JSON input
+                    input_parameters = json.loads(input_string)
+                    prompt = input_parameters.get('prompt', '')
+                    
+            except Exception as e:
+                logger.warning(f"Could not parse input data from task {task_id}: {e}")
+            
+            return {
+                'task_id': task_id,
+                'submitter': submitter,
+                'model_id': model_id,
+                'fee': fee,
+                'prompt': prompt,
+                'input_parameters': input_parameters,
+                'block_number': int(log['blockNumber'], 16),
+                'transaction_hash': log['transactionHash']
+            }
+            
+        except Exception as e:
+            logger.error(f"Error parsing TaskSubmitted event: {e}")
+            return None
+    
+    def get_task_information(self, start_block, end_block):
+        """Get task information from TaskSubmitted events"""
+        print(f"   Getting task information from events...")
+        
+        logs = self.get_contract_logs(start_block, end_block, self.task_submitted_topic)
+        task_info = {}
+        
+        for log in logs:
+            task_data = self.parse_task_submitted_event(log)
+            if task_data and task_data['task_id']:
+                task_info[task_data['task_id']] = task_data
+        
+        print(f"   Found {len(task_info)} task submissions")
+        return task_info
+    
+    def is_valid_cid(self, cid):
+        """Validate if a string is a valid IPFS CID"""
+        if not cid or len(cid) < 46:  # Minimum CID length
+            return False
+        
+        # Check if it starts with Qm (CIDv0) or other valid prefixes
+        if not (cid.startswith('Qm') or cid.startswith('bafy') or cid.startswith('baf')):
+            return False
+        
+        # Check length - typical CID lengths
+        if not (40 <= len(cid) <= 62):
+            return False
+        
+        # Check if it contains only valid base58 characters for Qm CIDs
+        if cid.startswith('Qm'):
+            valid_chars = set('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
+            if not all(c in valid_chars for c in cid):
+                return False
+        
+        return True
+
     def extract_cids_from_batch_solution(self, transaction):
-        """Extract CIDs from batch submitSolution transaction (0x65d445fb)"""
+        """Extract CIDs from batch solution transaction"""
         try:
             input_data = transaction['input']
             
@@ -108,21 +231,24 @@ class ArbitrumScanner:
                     # Convert to base58 (CIDv0 format)
                     cid = base58.b58encode(multihash_bytes).decode('ascii')
                     
-                    # Validate CID format
-                    if cid.startswith('Qm') and len(cid) == 46:
-                        cids.append(cid)
+                    # Validate CID format with our improved validation
+                    if self.is_valid_cid(cid):
+                        if cid not in cids:
+                            cids.append(cid)
+                            print(f"      Found valid CID: {cid}")
                         
                 except Exception:
                     continue
             
+            print(f"      Extracted {len(cids)} valid CIDs from batch solution")
             return cids
             
         except Exception as e:
-            print(f"Error extracting CIDs from batch solution: {e}")
+            print(f"      Error extracting CIDs from batch solution: {e}")
             return []
-    
+
     def extract_cids_from_single_solution(self, transaction):
-        """Extract CID from single submitSolution transaction (0x56914caf)"""
+        """Extract CID from single solution transaction"""
         try:
             input_data = transaction['input']
             
@@ -140,17 +266,19 @@ class ArbitrumScanner:
                     multihash_bytes = bytes.fromhex(multihash_hex)
                     cid = base58.b58encode(multihash_bytes).decode('ascii')
                     
-                    # Validate CID format
-                    if cid.startswith('Qm') and len(cid) == 46:
+                    # Validate CID format with our improved validation
+                    if self.is_valid_cid(cid):
+                        print(f"      Found valid CID: {cid}")
                         return [cid]  # Return as list for consistency
                         
                 except Exception:
                     pass
             
+            print(f"      No valid CID found in single solution")
             return []
             
         except Exception as e:
-            print(f"Error extracting CID from single solution: {e}")
+            print(f"      Error extracting CID from single solution: {e}")
             return []
     
     def extract_cids_from_solution(self, transaction):
@@ -184,6 +312,9 @@ class ArbitrumScanner:
         """Scan a range of blocks for Arbius images"""
         print(f"🔍 Scanning blocks {start_block} to {end_block}")
         
+        # Get task information from events first
+        task_info = self.get_task_information(start_block, end_block)
+        
         # Get all transactions in the range
         transactions = self.get_contract_transactions(start_block, end_block)
         
@@ -195,6 +326,16 @@ class ArbitrumScanner:
         
         new_images = []
         
+        # Helper function to convert block number properly
+        def convert_block_number(block_num_str):
+            """Convert block number string to integer, handling both hex and decimal formats"""
+            if isinstance(block_num_str, int):
+                return block_num_str
+            if block_num_str.startswith('0x'):
+                return int(block_num_str, 16)
+            else:
+                return int(block_num_str)
+        
         # Process batch solutions
         for tx in batch_solutions:
             try:
@@ -203,13 +344,6 @@ class ArbitrumScanner:
                 
                 for cid in cids:
                     if not ArbiusImage.objects.filter(cid=cid).exists():
-                        # Check IPFS accessibility
-                        is_accessible, gateway = self.check_ipfs_accessibility(cid)
-                        
-                        # Construct proper IPFS URLs
-                        ipfs_url = f"{self.ipfs_gateways[0]}{cid}"
-                        image_url = f"{self.ipfs_gateways[0]}{cid}/out-1.png"
-                        
                         # Extract task ID from transaction data
                         task_id = '0x0000000000000000000000000000000000000000000000000000000000000000'
                         try:
@@ -219,21 +353,47 @@ class ArbitrumScanner:
                         except:
                             pass
                         
-                        # Create image record with all required fields
-                        image = ArbiusImage.objects.create(
-                            cid=cid,
-                            transaction_hash=tx['hash'],
-                            task_id=task_id,
-                            block_number=int(tx['blockNumber'], 16),
-                            timestamp=timezone.now(),
-                            ipfs_url=ipfs_url,
-                            image_url=image_url,
-                            miner_address=tx['from'],
-                            gas_used=int(tx['gasUsed']) if tx.get('gasUsed') else None,
-                            is_accessible=is_accessible,
-                            ipfs_gateway=gateway or ''
-                        )
-                        new_images.append(image)
+                        # Get task information if available
+                        task_data = task_info.get(task_id, {})
+                        model_id = task_data.get('model_id')
+                        prompt = task_data.get('prompt')
+                        input_parameters = task_data.get('input_parameters')
+                        
+                        # ONLY save if we have a prompt (indicating it's a real image)
+                        if prompt and prompt.strip():
+                            # Check IPFS accessibility
+                            is_accessible, gateway = self.check_ipfs_accessibility(cid)
+                            
+                            # Construct proper IPFS URLs
+                            ipfs_url = f"{self.ipfs_gateways[0]}{cid}"
+                            image_url = f"{self.ipfs_gateways[0]}{cid}/out-1.png"
+                            
+                            # Convert block number properly
+                            block_number = convert_block_number(tx['blockNumber'])
+                            timestamp = datetime.fromtimestamp(int(tx['timeStamp']), tz=timezone.get_current_timezone())
+                            
+                            # Create image record with all required fields
+                            image = ArbiusImage.objects.create(
+                                cid=cid,
+                                transaction_hash=tx['hash'],
+                                task_id=task_id,
+                                block_number=block_number,
+                                timestamp=timestamp,
+                                ipfs_url=ipfs_url,
+                                image_url=image_url,
+                                miner_address=tx['from'],
+                                gas_used=int(tx['gasUsed']) if tx.get('gasUsed') else None,
+                                is_accessible=is_accessible,
+                                ipfs_gateway=gateway or '',
+                                model_id=model_id,
+                                prompt=prompt,
+                                input_parameters=input_parameters
+                            )
+                            new_images.append(image)
+                            
+                            print(f"      ✅ Saved image with prompt: \"{prompt[:50]}...\"")
+                        else:
+                            print(f"      ⏭️ Skipping {cid[:20]}... (no prompt - likely not an image)")
                         
             except Exception as e:
                 print(f"   Error processing batch transaction {tx['hash']}: {e}")
@@ -247,13 +407,6 @@ class ArbitrumScanner:
                     print(f"   Single transaction {tx['hash'][:20]}... extracted CID: {cid}")
                     
                     if not ArbiusImage.objects.filter(cid=cid).exists():
-                        # Check IPFS accessibility
-                        is_accessible, gateway = self.check_ipfs_accessibility(cid)
-                        
-                        # Construct proper IPFS URLs
-                        ipfs_url = f"{self.ipfs_gateways[0]}{cid}"
-                        image_url = f"{self.ipfs_gateways[0]}{cid}/out-1.png"
-                        
                         # Extract task ID from transaction data
                         task_id = '0x0000000000000000000000000000000000000000000000000000000000000000'
                         try:
@@ -263,21 +416,47 @@ class ArbitrumScanner:
                         except:
                             pass
                         
-                        # Create image record with all required fields
-                        image = ArbiusImage.objects.create(
-                            cid=cid,
-                            transaction_hash=tx['hash'],
-                            task_id=task_id,
-                            block_number=int(tx['blockNumber'], 16),
-                            timestamp=timezone.now(),
-                            ipfs_url=ipfs_url,
-                            image_url=image_url,
-                            miner_address=tx['from'],
-                            gas_used=int(tx['gasUsed']) if tx.get('gasUsed') else None,
-                            is_accessible=is_accessible,
-                            ipfs_gateway=gateway or ''
-                        )
-                        new_images.append(image)
+                        # Get task information if available
+                        task_data = task_info.get(task_id, {})
+                        model_id = task_data.get('model_id')
+                        prompt = task_data.get('prompt')
+                        input_parameters = task_data.get('input_parameters')
+                        
+                        # ONLY save if we have a prompt (indicating it's a real image)
+                        if prompt and prompt.strip():
+                            # Check IPFS accessibility
+                            is_accessible, gateway = self.check_ipfs_accessibility(cid)
+                            
+                            # Construct proper IPFS URLs
+                            ipfs_url = f"{self.ipfs_gateways[0]}{cid}"
+                            image_url = f"{self.ipfs_gateways[0]}{cid}/out-1.png"
+                            
+                            # Convert block number properly
+                            block_number = convert_block_number(tx['blockNumber'])
+                            timestamp = datetime.fromtimestamp(int(tx['timeStamp']), tz=timezone.get_current_timezone())
+                            
+                            # Create image record with all required fields
+                            image = ArbiusImage.objects.create(
+                                cid=cid,
+                                transaction_hash=tx['hash'],
+                                task_id=task_id,
+                                block_number=block_number,
+                                timestamp=timestamp,
+                                ipfs_url=ipfs_url,
+                                image_url=image_url,
+                                miner_address=tx['from'],
+                                gas_used=int(tx['gasUsed']) if tx.get('gasUsed') else None,
+                                is_accessible=is_accessible,
+                                ipfs_gateway=gateway or '',
+                                model_id=model_id,
+                                prompt=prompt,
+                                input_parameters=input_parameters
+                            )
+                            new_images.append(image)
+                            
+                            print(f"      ✅ Saved image with prompt: \"{prompt[:50]}...\"")
+                        else:
+                            print(f"      ⏭️ Skipping {cid[:20]}... (no prompt - likely not an image)")
                         
             except Exception as e:
                 print(f"   Error processing single transaction {tx['hash']}: {e}")
@@ -305,6 +484,16 @@ class ArbitrumScanner:
                 logger.info(f"CID {cid} already exists, skipping")
                 return None
             
+            # Helper function to convert block number properly
+            def convert_block_number(block_num_str):
+                """Convert block number string to integer, handling both hex and decimal formats"""
+                if isinstance(block_num_str, int):
+                    return block_num_str
+                if block_num_str.startswith('0x'):
+                    return int(block_num_str, 16)
+                else:
+                    return int(block_num_str)
+            
             # Create the image record
             timestamp = datetime.fromtimestamp(int(tx['timeStamp']), tz=timezone.get_current_timezone())
             ipfs_url = f"{self.ipfs_gateways[0]}{cid}/out-1.png"
@@ -325,7 +514,7 @@ class ArbitrumScanner:
             image = ArbiusImage.objects.create(
                 transaction_hash=tx['hash'],
                 task_id=task_id,
-                block_number=int(tx['blockNumber'], 16),
+                block_number=convert_block_number(tx['blockNumber']),
                 timestamp=timestamp,
                 cid=cid,
                 ipfs_url=ipfs_url,
@@ -520,3 +709,59 @@ class ArbitrumScanner:
             status.total_images_found = ArbiusImage.objects.count()
             status.scan_in_progress = False
             status.save() 
+
+    def scan_recent_minutes(self, minutes=30):
+        """Scan the last N minutes for new images with prompts only"""
+        try:
+            logger.info(f"Starting scan of last {minutes} minutes...")
+            
+            # Get current scan status
+            status, created = ScanStatus.objects.get_or_create(
+                id=1,
+                defaults={'last_scanned_block': 0}
+            )
+            
+            if status.scan_in_progress:
+                logger.warning("Scan already in progress, skipping...")
+                return 0
+            
+            # Set scan in progress
+            status.scan_in_progress = True
+            status.save()
+            
+            latest_block = self.get_latest_block()
+            if not latest_block:
+                logger.error("Could not get latest block number")
+                status.scan_in_progress = False
+                status.save()
+                return 0
+            
+            # Calculate blocks for the time period
+            # Arbitrum produces blocks very frequently - approximately 1 block every 0.25-2 seconds
+            # For safety, we'll use 1 block per second as estimate for 30 minutes = 1800 blocks
+            # But we'll scan a bit more to be safe
+            blocks_for_period = minutes * 60 * 2  # 2 blocks per second estimate
+            
+            start_block = latest_block - blocks_for_period
+            end_block = latest_block
+            
+            logger.info(f"Scanning last {minutes} minutes: blocks {start_block} to {end_block} ({blocks_for_period} blocks)")
+            
+            new_images = self.scan_blocks(start_block, end_block)
+            
+            # Update scan status
+            self.update_scan_status(end_block, len(new_images))
+            
+            logger.info(f"🎉 Recent scan complete! Found {len(new_images)} new images with prompts")
+            return len(new_images)
+            
+        except Exception as e:
+            logger.error(f"Error during recent scan: {e}")
+            # Make sure to reset scan in progress
+            try:
+                status = ScanStatus.objects.get(id=1)
+                status.scan_in_progress = False
+                status.save()
+            except:
+                pass
+            return 0 
