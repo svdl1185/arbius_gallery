@@ -149,4 +149,20 @@ cython_debug/
 staticfiles/
 
 # Local environment variables
-.env.local 
+.env.local
+
+# Debug and temporary development files
+debug_*.py
+find_*.py
+check_*.py
+fix_*.py
+test_*.py
+temp_*.py
+scan_*.py  # Exclude standalone scan scripts (keep management commands)
+setup_*.sh
+cleanup_*.sh
+deploy_*.sh
+
+# Development environment
+*_env/
+arbius_env/ 
