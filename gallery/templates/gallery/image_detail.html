@@ -57,24 +57,7 @@
                     <p><i class="bi bi-clock"></i> {{ image.timestamp|time:"H:i" }} UTC</p>
                 </div>
                 
-                <div class="mb-4">
-                    <h6 class="text-muted mb-2">Blockchain Details</h6>
-                    <p><i class="bi bi-layers"></i> Block: #{{ image.block_number|floatformat:"0" }}</p>
-                    <p><i class="bi bi-cpu"></i> Solution Provider: <span class="font-monospace">{{ image.solution_provider|truncatechars:20 }}</span></p>
-                    {% if image.task_submitter %}
-                        <p><i class="bi bi-person"></i> Task Submitter: <span class="font-monospace">{{ image.task_submitter|truncatechars:20 }}</span></p>
-                    {% else %}
-                        <p><i class="bi bi-person text-muted"></i> Task Submitter: <span class="text-muted">Unknown</span></p>
-                    {% endif %}
-                </div>
-                
                 <div class="d-grid gap-2">
-                    {% if image.is_accessible %}
-                        <a href="{{ image.image_url }}" target="_blank" class="btn btn-primary">
-                            <i class="bi bi-download"></i> View Full Size
-                        </a>
-                    {% endif %}
-                    
                     <a href="https://arbiscan.io/tx/{{ image.transaction_hash }}" 
                        target="_blank" class="btn btn-outline-info">
                         <i class="bi bi-box-arrow-up-right"></i> View on Arbiscan

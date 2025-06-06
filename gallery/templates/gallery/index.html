@@ -10,6 +10,27 @@
         </p>
     </div>
 
+    <!-- Search Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="search-card">
+                <form method="get" action="{% url 'gallery:search' %}" class="search-form">
+                    <div class="input-group">
+                        <input type="text" 
+                               name="q" 
+                               class="form-control search-input" 
+                               placeholder="Search images by prompt keywords..." 
+                               value="{{ request.GET.q }}"
+                               autocomplete="off">
+                        <button class="btn btn-primary search-btn" type="submit">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Quick Stats -->
     <div class="row mb-4">
         <div class="col-md-4 mb-3">
@@ -20,8 +41,8 @@
         </div>
         <div class="col-md-4 mb-3">
             <div class="stats-card">
-                <div class="stats-number">{{ unique_wallets }}</div>
-                <div class="stats-label">Unique Users</div>
+                <div class="stats-number">{{ images_this_week }}</div>
+                <div class="stats-label">New This Week</div>
             </div>
         </div>
         <div class="col-md-4 mb-3">
@@ -76,12 +97,12 @@
                 <ul class="pagination">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1">
+                            <a class="page-link" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
                                 <i class="bi bi-chevron-double-left"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
                                 <i class="bi bi-chevron-left"></i>
                             </a>
                         </li>
@@ -94,19 +115,19 @@
                             </li>
                         {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                <a class="page-link" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">{{ num }}</a>
                             </li>
                         {% endif %}
                     {% endfor %}
 
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
                                 <i class="bi bi-chevron-right"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
                                 <i class="bi bi-chevron-double-right"></i>
                             </a>
                         </li>
@@ -116,10 +137,64 @@
         {% endif %}
     {% else %}
         <div class="text-center py-5">
-            <i class="bi bi-image" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
-            <h3>No images found</h3>
-            <p class="text-muted">The gallery is being populated with AI artwork from the Arbius network.</p>
+            {% if request.GET.q %}
+                <i class="bi bi-search" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                <h3>No results found</h3>
+                <p class="text-muted">No images found matching "{{ request.GET.q }}". Try different keywords.</p>
+                <a href="{% url 'gallery:index' %}" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left"></i> Back to Gallery
+                </a>
+            {% else %}
+                <i class="bi bi-image" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                <h3>No images found</h3>
+                <p class="text-muted">The gallery is being populated with AI artwork from the Arbius network.</p>
+            {% endif %}
         </div>
     {% endif %}
 </div>
+
+<style>
+.search-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.search-input {
+    background: var(--input-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px 0 0 8px;
+}
+
+.search-input:focus {
+    background: var(--input-bg);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.search-btn {
+    background: var(--primary-gradient);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0 8px 8px 0;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.search-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.input-group {
+    max-width: 600px;
+    margin: 0 auto;
+}
+</style>
 {% endblock %} 

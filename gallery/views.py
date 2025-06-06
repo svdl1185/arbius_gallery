@@ -17,12 +17,13 @@ def index(request):
     # Calculate stats for display
     total_images = images.count()
     
-    # Count unique wallets that have generated images (using task_submitter for unique users)
-    unique_wallets = images.filter(task_submitter__isnull=False).exclude(task_submitter='').values('task_submitter').distinct().count()
-    
     # Count new images in the last 24 hours
     twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
     new_images_24h = images.filter(timestamp__gte=twenty_four_hours_ago).count()
+    
+    # Count new images in the last week
+    one_week_ago = timezone.now() - timedelta(weeks=1)
+    images_this_week = images.filter(timestamp__gte=one_week_ago).count()
     
     # Pagination
     paginator = Paginator(images, 12)  # Show 12 images per page
@@ -34,8 +35,58 @@ def index(request):
         'page_obj': page_obj,
         'is_paginated': page_obj.has_other_pages(),
         'total_images': total_images,
-        'unique_wallets': unique_wallets,
         'new_images_24h': new_images_24h,
+        'images_this_week': images_this_week,
+    }
+    
+    return render(request, 'gallery/index.html', context)
+
+
+def search(request):
+    """Search view for finding images by prompt keywords"""
+    query = request.GET.get('q', '').strip()
+    
+    if query:
+        # Search in both prompt and clean_prompt fields
+        images = ArbiusImage.objects.exclude(
+            prompt__startswith="<|begin_of_text|>"
+        ).filter(
+            Q(prompt__icontains=query) | Q(clean_prompt__icontains=query)
+        ).order_by('-is_accessible', '-timestamp')
+    else:
+        # If no query, redirect to regular index
+        images = ArbiusImage.objects.exclude(
+            prompt__startswith="<|begin_of_text|>"
+        ).order_by('-is_accessible', '-timestamp')
+    
+    # Calculate stats for display
+    total_images = ArbiusImage.objects.exclude(prompt__startswith="<|begin_of_text|>").count()
+    
+    # Count new images in the last 24 hours
+    twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
+    new_images_24h = ArbiusImage.objects.exclude(
+        prompt__startswith="<|begin_of_text|>"
+    ).filter(timestamp__gte=twenty_four_hours_ago).count()
+    
+    # Count new images in the last week
+    one_week_ago = timezone.now() - timedelta(weeks=1)
+    images_this_week = ArbiusImage.objects.exclude(
+        prompt__startswith="<|begin_of_text|>"
+    ).filter(timestamp__gte=one_week_ago).count()
+    
+    # Pagination
+    paginator = Paginator(images, 12)  # Show 12 images per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'images': page_obj,
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'total_images': total_images,
+        'new_images_24h': new_images_24h,
+        'images_this_week': images_this_week,
+        'query': query,
     }
     
     return render(request, 'gallery/index.html', context)
@@ -71,7 +122,6 @@ def info(request):
     
     # Calculate new statistics
     unique_models = valid_images.filter(model_id__isnull=False).exclude(model_id='').values('model_id').distinct().count()
-    unique_users = valid_images.filter(task_submitter__isnull=False).exclude(task_submitter='').values('task_submitter').distinct().count()
     
     # Calculate daily average (images per day)
     if total_images > 0:
@@ -112,7 +162,6 @@ def info(request):
         'total_images': total_images,
         'images_with_prompts': images_with_prompts,
         'unique_models': unique_models,
-        'unique_users': unique_users,
         'daily_average': daily_average,
         'most_popular_model_short': most_popular_model_short,
         'most_popular_model_week_short': most_popular_model_week_short,
