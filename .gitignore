@@ -159,6 +159,7 @@ fix_*.py
 test_*.py
 temp_*.py
 scan_*.py  # Exclude standalone scan scripts (keep management commands)
+!scan_older_blocks.py  # But keep this legitimate production tool
 setup_*.sh
 cleanup_*.sh
 deploy_*.sh
