@@ -14,8 +14,8 @@ def index(request):
     # Calculate stats for display
     total_images = ArbiusImage.objects.count()
     
-    # Count unique wallets that have generated images (using miner_address since it's populated)
-    unique_wallets = ArbiusImage.objects.values('miner_address').distinct().count()
+    # Count unique wallets that have generated images (using solution_provider since it's more accurate)
+    unique_wallets = ArbiusImage.objects.values('solution_provider').distinct().count()
     
     # Count new images in the last 24 hours
     twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
@@ -64,7 +64,7 @@ def info(request):
     # Calculate new statistics
     unique_models = ArbiusImage.objects.exclude(model_id__isnull=True).exclude(model_id__exact='').values('model_id').distinct().count()
     unique_users = ArbiusImage.objects.values('owner_address').distinct().count()
-    unique_miners = ArbiusImage.objects.values('miner_address').distinct().count()
+    unique_miners = ArbiusImage.objects.values('solution_provider').distinct().count()
     
     # Most popular model overall
     from django.db.models import Count

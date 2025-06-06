@@ -4,9 +4,9 @@ from .models import ArbiusImage, ScanStatus
 
 @admin.register(ArbiusImage)
 class ArbiusImageAdmin(admin.ModelAdmin):
-    list_display = ['short_cid', 'block_number', 'timestamp', 'miner_address', 'is_accessible', 'short_model_id', 'has_prompt']
+    list_display = ['short_cid', 'block_number', 'timestamp', 'solution_provider', 'is_accessible', 'short_model_id', 'has_prompt']
     list_filter = ['is_accessible', 'timestamp', 'discovered_at', 'model_id']
-    search_fields = ['cid', 'transaction_hash', 'task_id', 'miner_address', 'prompt', 'model_id']
+    search_fields = ['cid', 'transaction_hash', 'task_id', 'solution_provider', 'task_submitter', 'prompt', 'model_id']
     readonly_fields = ['transaction_hash', 'task_id', 'block_number', 'timestamp', 'cid', 'discovered_at']
     
     fieldsets = (
@@ -19,8 +19,11 @@ class ArbiusImageAdmin(admin.ModelAdmin):
         ('AI Generation Details', {
             'fields': ('model_id', 'prompt', 'input_parameters')
         }),
-        ('Metadata', {
-            'fields': ('miner_address', 'owner_address', 'gas_used')
+        ('Addresses', {
+            'fields': ('solution_provider', 'task_submitter', 'owner_address')
+        }),
+        ('Legacy/Metadata', {
+            'fields': ('miner_address', 'gas_used')
         }),
         ('Tracking', {
             'fields': ('discovered_at', 'last_checked')

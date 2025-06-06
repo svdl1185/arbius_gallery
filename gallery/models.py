@@ -21,8 +21,12 @@ class ArbiusImage(models.Model):
     prompt = models.TextField(blank=True, null=True, help_text="The prompt used to generate this image")
     input_parameters = models.JSONField(blank=True, null=True, help_text="Full input parameters including prompt and other settings")
     
-    # Metadata
-    miner_address = models.CharField(max_length=42)
+    # Addresses - clarified for accuracy
+    solution_provider = models.CharField(max_length=42, default='0x0000000000000000000000000000000000000000', help_text="Address of the miner who provided the solution/image")
+    task_submitter = models.CharField(max_length=42, null=True, blank=True, help_text="Address of the user who originally submitted the task/prompt")
+    
+    # Legacy field for backward compatibility (will be removed later)
+    miner_address = models.CharField(max_length=42, null=True, blank=True, help_text="DEPRECATED: Use solution_provider instead")
     owner_address = models.CharField(max_length=42, null=True, blank=True)
     gas_used = models.BigIntegerField(null=True, blank=True)
     

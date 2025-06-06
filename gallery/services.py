@@ -436,6 +436,9 @@ class ArbitrumScanner:
                             block_number = convert_block_number(tx['blockNumber'])
                             timestamp = datetime.fromtimestamp(int(tx['timeStamp']), tz=timezone.get_current_timezone())
                             
+                            # Get task submitter from task data (original requester)
+                            task_submitter = task_data.get('submitter') if task_data else None
+                            
                             # Create image record with all required fields
                             image = ArbiusImage.objects.create(
                                 cid=cid,
@@ -445,7 +448,8 @@ class ArbitrumScanner:
                                 timestamp=timestamp,
                                 ipfs_url=ipfs_url,
                                 image_url=image_url,
-                                miner_address=tx['from'],
+                                solution_provider=tx['from'],  # Miner who provided the solution
+                                miner_address=tx['from'],  # Keep for backward compatibility
                                 gas_used=int(tx['gasUsed']) if tx.get('gasUsed') else None,
                                 is_accessible=is_accessible,
                                 ipfs_gateway=gateway or '',
@@ -455,10 +459,16 @@ class ArbitrumScanner:
                             )
                             new_images.append(image)
                             
-                            if prompt and prompt.strip():
-                                print(f"      ✅ Saved image with prompt: \"{prompt[:50]}...\"")
+                            # Enhanced logging to show the distinction
+                            if task_submitter and task_submitter != tx['from']:
+                                print(f"      ✅ Saved image - Task by: {task_submitter[:10]}..., Solution by: {tx['from'][:10]}...")
                             else:
-                                print(f"      ✅ Saved image (no prompt found yet - will retry later)")
+                                print(f"      ✅ Saved image - Solution by: {tx['from'][:10]}... (task submitter unknown)")
+                            
+                            if prompt and prompt.strip():
+                                print(f"         Prompt: \"{prompt[:50]}...\"")
+                            else:
+                                print(f"         No prompt found yet - will retry later")
                         else:
                             print(f"      ⏭️ Skipping {cid[:20]}... (not accessible via IPFS)")
                         
@@ -523,7 +533,8 @@ class ArbitrumScanner:
                 cid=cid,
                 ipfs_url=ipfs_url,
                 image_url=image_url,
-                miner_address=tx['from'],
+                solution_provider=tx['from'],  # Miner who provided the solution
+                miner_address=tx['from'],  # Keep for backward compatibility
                 gas_used=int(tx['gasUsed']) if tx.get('gasUsed') else None,
                 is_accessible=is_accessible,
                 ipfs_gateway=gateway or ''
