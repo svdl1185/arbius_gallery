@@ -4,7 +4,7 @@ from .models import ArbiusImage, ScanStatus
 
 @admin.register(ArbiusImage)
 class ArbiusImageAdmin(admin.ModelAdmin):
-    list_display = ['short_cid', 'block_number', 'timestamp', 'solution_provider', 'is_accessible', 'short_model_id', 'has_prompt']
+    list_display = ['short_cid', 'block_number', 'timestamp', 'solution_provider', 'is_accessible', 'short_model_id', 'has_prompt', 'is_system_text']
     list_filter = ['is_accessible', 'timestamp', 'discovered_at', 'model_id']
     search_fields = ['cid', 'transaction_hash', 'task_id', 'solution_provider', 'task_submitter', 'prompt', 'model_id']
     readonly_fields = ['transaction_hash', 'task_id', 'block_number', 'timestamp', 'cid', 'discovered_at']
@@ -42,6 +42,14 @@ class ArbiusImageAdmin(admin.ModelAdmin):
         return bool(obj.prompt)
     has_prompt.boolean = True
     has_prompt.short_description = 'Has Prompt'
+    
+    def is_system_text(self, obj):
+        """Identify entries that are system text (not actual images)"""
+        if not obj.prompt:
+            return False
+        return obj.prompt.strip().startswith("<|begin_of_text|>")
+    is_system_text.boolean = True
+    is_system_text.short_description = 'System Text'
 
 
 @admin.register(ScanStatus)

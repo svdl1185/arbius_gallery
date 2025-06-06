@@ -73,13 +73,21 @@ class ArbiusImage(models.Model):
         # Remove the additional instruction text that gets appended to prompts
         clean_text = self.prompt
         
-        # Remove the "Additional instruction: Make sure to keep response short and consice." part
+        # Remove the "Additional instruction: Make sure to keep response short and consice." part (with typo)
         if "Additional instruction: Make sure to keep response short and consice." in clean_text:
             clean_text = clean_text.replace("Additional instruction: Make sure to keep response short and consice.", "").strip()
         
-        # Also handle slight variations in spacing/punctuation
+        # Also handle slight variations in spacing/punctuation (correct spelling)
         if "Additional instruction: Make sure to keep response short and concise." in clean_text:
             clean_text = clean_text.replace("Additional instruction: Make sure to keep response short and concise.", "").strip()
+            
+        # Handle the specific variation mentioned by the user: "very short and consice"
+        if "Additional instruction: Make sure to keep response very short and consice." in clean_text:
+            clean_text = clean_text.replace("Additional instruction: Make sure to keep response very short and consice.", "").strip()
+            
+        # Handle the correct spelling version of the above
+        if "Additional instruction: Make sure to keep response very short and concise." in clean_text:
+            clean_text = clean_text.replace("Additional instruction: Make sure to keep response very short and concise.", "").strip()
             
         return clean_text
 
