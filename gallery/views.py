@@ -17,8 +17,8 @@ def index(request):
     # Calculate stats for display
     total_images = images.count()
     
-    # Count unique wallets that have generated images (using solution_provider since it's more accurate)
-    unique_wallets = images.values('solution_provider').distinct().count()
+    # Count unique wallets that have generated images (using task_submitter for unique users)
+    unique_wallets = images.filter(task_submitter__isnull=False).exclude(task_submitter='').values('task_submitter').distinct().count()
     
     # Count new images in the last 24 hours
     twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
@@ -67,22 +67,33 @@ def info(request):
     
     # Calculate comprehensive stats
     total_images = valid_images.count()
-    accessible_images = valid_images.filter(is_accessible=True).count()
+    images_with_prompts = valid_images.filter(prompt__isnull=False).exclude(prompt='').count()
     
     # Calculate new statistics
-    unique_models = valid_images.exclude(model_id__isnull=True).exclude(model_id__exact='').values('model_id').distinct().count()
-    unique_users = valid_images.values('owner_address').distinct().count()
-    unique_miners = valid_images.values('solution_provider').distinct().count()
+    unique_models = valid_images.filter(model_id__isnull=False).exclude(model_id='').values('model_id').distinct().count()
+    unique_users = valid_images.filter(task_submitter__isnull=False).exclude(task_submitter='').values('task_submitter').distinct().count()
+    
+    # Calculate daily average (images per day)
+    if total_images > 0:
+        oldest_image = valid_images.order_by('timestamp').first()
+        newest_image = valid_images.order_by('-timestamp').first()
+        if oldest_image and newest_image:
+            days_span = (newest_image.timestamp - oldest_image.timestamp).days + 1
+            daily_average = round(total_images / days_span, 1) if days_span > 0 else total_images
+        else:
+            daily_average = 0
+    else:
+        daily_average = 0
     
     # Most popular model overall
     from django.db.models import Count
-    most_popular_model = valid_images.exclude(model_id__isnull=True).exclude(model_id__exact='').values('model_id').annotate(count=Count('model_id')).order_by('-count').first()
+    most_popular_model = valid_images.filter(model_id__isnull=False).exclude(model_id='').values('model_id').annotate(count=Count('model_id')).order_by('-count').first()
     most_popular_model_id = most_popular_model['model_id'] if most_popular_model else None
     most_popular_model_short = f"{most_popular_model_id[:8]}...{most_popular_model_id[-8:]}" if most_popular_model_id and len(most_popular_model_id) > 16 else (most_popular_model_id or "N/A")
     
     # Most popular model this week
     one_week_ago = timezone.now() - timedelta(weeks=1)
-    most_popular_model_week = valid_images.filter(timestamp__gte=one_week_ago).exclude(model_id__isnull=True).exclude(model_id__exact='').values('model_id').annotate(count=Count('model_id')).order_by('-count').first()
+    most_popular_model_week = valid_images.filter(timestamp__gte=one_week_ago, model_id__isnull=False).exclude(model_id='').values('model_id').annotate(count=Count('model_id')).order_by('-count').first()
     most_popular_model_week_id = most_popular_model_week['model_id'] if most_popular_model_week else None
     most_popular_model_week_short = f"{most_popular_model_week_id[:8]}...{most_popular_model_week_id[-8:]}" if most_popular_model_week_id and len(most_popular_model_week_id) > 16 else (most_popular_model_week_id or "N/A")
     
@@ -99,10 +110,10 @@ def info(request):
     
     context = {
         'total_images': total_images,
-        'accessible_images': accessible_images,
+        'images_with_prompts': images_with_prompts,
         'unique_models': unique_models,
         'unique_users': unique_users,
-        'unique_miners': unique_miners,
+        'daily_average': daily_average,
         'most_popular_model_short': most_popular_model_short,
         'most_popular_model_week_short': most_popular_model_week_short,
         'images_this_week': images_this_week,
