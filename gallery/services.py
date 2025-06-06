@@ -118,7 +118,8 @@ class ArbitrumScanner:
                 'apikey': self.api_key
             }
             
-            response = requests.get(self.base_url, params=params, timeout=30)
+            # Add timeout to prevent hanging - increased from default
+            response = requests.get(self.base_url, params=params, timeout=15)
             data = response.json()
             
             if data.get('status') == '1':
@@ -127,6 +128,9 @@ class ArbitrumScanner:
                 print(f"API Error getting logs: {data}")
                 return []
                 
+        except requests.exceptions.Timeout:
+            print(f"Timeout getting logs for blocks {start_block} to {end_block}")
+            return []
         except Exception as e:
             print(f"Error getting event logs: {e}")
             return []

@@ -24,8 +24,8 @@ class Command(BaseCommand):
         parser.add_argument(
             '--lookback-blocks',
             type=int,
-            default=50000,
-            help='How many blocks to look back for task information (default: 50000)'
+            default=10000,  # Reduced from 50000 to 10000
+            help='How many blocks to look back for task information (default: 10000)'
         )
         parser.add_argument(
             '--quiet',
@@ -71,18 +71,41 @@ class Command(BaseCommand):
         
         for image in images_to_process:
             try:
-                # Calculate search range around the image's block
-                search_start = image.block_number - options['lookback_blocks']
-                search_end = image.block_number + 1000  # Small forward range
+                # Use smaller, more targeted search ranges
+                search_ranges = [
+                    (image.block_number - 5000, image.block_number + 100),   # Close range first
+                    (image.block_number - options['lookback_blocks'], image.block_number - 5000)  # Extended range if needed
+                ]
                 
                 if not options['quiet']:
                     self.stdout.write(f'   📦 Processing {image.cid[:20]}... (Block {image.block_number})')
                 
-                # Get task information for this block range
-                task_info = scanner.get_task_information(search_start, search_end)
+                task_data = None
                 
-                if image.task_id and image.task_id in task_info:
-                    task_data = task_info[image.task_id]
+                # Try each search range until we find task data
+                for search_start, search_end in search_ranges:
+                    if search_start >= search_end:
+                        continue
+                        
+                    try:
+                        if not options['quiet']:
+                            self.stdout.write(f'      🔍 Searching blocks {search_start} to {search_end}...')
+                        
+                        # Get task information for this smaller block range
+                        task_info = scanner.get_task_information(search_start, search_end)
+                        
+                        if image.task_id and image.task_id in task_info:
+                            task_data = task_info[image.task_id]
+                            if not options['quiet']:
+                                self.stdout.write(f'      ✅ Found task data in range!')
+                            break
+                            
+                    except Exception as e:
+                        if not options['quiet']:
+                            self.stdout.write(f'      ⚠️ Search range {search_start}-{search_end} failed: {e}')
+                        continue
+                
+                if task_data:
                     updated = False
                     
                     # Update missing fields
