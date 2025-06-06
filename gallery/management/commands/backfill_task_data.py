@@ -24,7 +24,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--lookback-blocks',
             type=int,
-            default=10000,  # Reduced from 50000 to 10000
+            default=50000,
             help='How many blocks to look back for task information (default: 10000)'
         )
         parser.add_argument(
