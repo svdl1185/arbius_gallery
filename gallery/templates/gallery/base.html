@@ -290,6 +290,31 @@
             color: #667eea;
         }
         
+        .telegram-btn {
+            background: linear-gradient(135deg, #229ED9 0%, #0088cc 100%) !important;
+            border: none !important;
+            color: white !important;
+            font-weight: 600 !important;
+            padding: 8px 16px !important;
+            border-radius: 25px !important;
+            transition: all 0.3s ease !important;
+            text-decoration: none !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            box-shadow: 0 4px 15px rgba(34, 158, 217, 0.3) !important;
+        }
+        
+        .telegram-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 20px rgba(34, 158, 217, 0.4) !important;
+            color: white !important;
+        }
+        
+        .telegram-btn i {
+            font-size: 1.1rem;
+        }
+        
         @media (max-width: 768px) {
             .hero-title {
                 font-size: 2rem;
@@ -324,6 +349,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'gallery:info' %}">
                             <i class="bi bi-info-circle"></i> Info
+                        </a>
+                    </li>
+                    <li class="nav-item ms-2">
+                        <a class="telegram-btn" href="https://t.me/+jILwOBI70xsxYTM9" target="_blank">
+                            <i class="bi bi-telegram"></i> Try for free
                         </a>
                     </li>
                 </ul>
