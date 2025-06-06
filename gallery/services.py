@@ -380,11 +380,11 @@ class ArbitrumScanner:
         # Get all transactions in the range
         transactions = self.get_contract_transactions(start_block, end_block)
         
-        # Filter for BOTH types of submitSolution transactions
-        batch_solutions = [tx for tx in transactions if tx.get('input', '').startswith(self.submit_solution_batch_sig)]
+        # ONLY process single submitSolution transactions (skip bulk submissions)
+        # Bulk submissions don't contain actual images
         single_solutions = [tx for tx in transactions if tx.get('input', '').startswith(self.submit_solution_single_sig)]
         
-        print(f"   Found {len(batch_solutions)} batch solutions, {len(single_solutions)} single solutions")
+        print(f"   Found {len(single_solutions)} single solution transactions (skipping bulk submissions)")
         print(f"   Found {len(task_info)} task submissions in broader range")
         
         # DEBUG: Print some task info to see what we found
@@ -406,60 +406,7 @@ class ArbitrumScanner:
             else:
                 return int(block_num_str)
         
-        # Process batch solutions
-        for tx in batch_solutions:
-            try:
-                cids = self.extract_cids_from_batch_solution(tx)
-                print(f"   Batch transaction {tx['hash'][:20]}... extracted {len(cids)} CIDs")
-                
-                for cid, task_id in cids:
-                    if not ArbiusImage.objects.filter(cid=cid).exists():
-                        # Get task information if available
-                        task_data = task_info.get(task_id, {})
-                        model_id = task_data.get('model_id')
-                        prompt = task_data.get('prompt')
-                        input_parameters = task_data.get('input_parameters')
-                        
-                        # ONLY save if we have a prompt (indicating it's a real image)
-                        if prompt and prompt.strip():
-                            # Check IPFS accessibility
-                            is_accessible, gateway = self.check_ipfs_accessibility(cid)
-                            
-                            # Construct proper IPFS URLs
-                            ipfs_url = f"{self.ipfs_gateways[0]}{cid}"
-                            image_url = f"{self.ipfs_gateways[0]}{cid}/out-1.png"
-                            
-                            # Convert block number properly
-                            block_number = convert_block_number(tx['blockNumber'])
-                            timestamp = datetime.fromtimestamp(int(tx['timeStamp']), tz=timezone.get_current_timezone())
-                            
-                            # Create image record with all required fields
-                            image = ArbiusImage.objects.create(
-                                cid=cid,
-                                transaction_hash=tx['hash'],
-                                task_id=task_id,
-                                block_number=block_number,
-                                timestamp=timestamp,
-                                ipfs_url=ipfs_url,
-                                image_url=image_url,
-                                miner_address=tx['from'],
-                                gas_used=int(tx['gasUsed']) if tx.get('gasUsed') else None,
-                                is_accessible=is_accessible,
-                                ipfs_gateway=gateway or '',
-                                model_id=model_id,
-                                prompt=prompt,
-                                input_parameters=input_parameters
-                            )
-                            new_images.append(image)
-                            
-                            print(f"      ✅ Saved image with prompt: \"{prompt[:50]}...\"")
-                        else:
-                            print(f"      ⏭️ Skipping {cid[:20]}... (no prompt - likely not an image)")
-                        
-            except Exception as e:
-                print(f"   Error processing batch transaction {tx['hash']}: {e}")
-        
-        # Process single solutions
+        # Process ONLY single solutions (real images)
         for tx in single_solutions:
             try:
                 cids = self.extract_cids_from_single_solution(tx)
