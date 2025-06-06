@@ -52,11 +52,10 @@
                         </div>
                         
                         <div class="image-info">
-                            <div class="image-cid">{{ image.cid }}</div>
-                            {% if image.prompt %}
+                            {% if image.clean_prompt %}
                                 <div class="image-prompt">
                                     <i class="bi bi-chat-square-text"></i>
-                                    "{{ image.prompt|truncatechars:80 }}"
+                                    "{{ image.clean_prompt|truncatechars:80 }}"
                                 </div>
                             {% endif %}
                             <div class="image-meta">

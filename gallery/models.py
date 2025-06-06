@@ -60,6 +60,25 @@ class ArbiusImage(models.Model):
             return "Unknown Model"
         return f"{self.model_id[:8]}...{self.model_id[-8:]}" if len(self.model_id) > 16 else self.model_id
 
+    @property
+    def clean_prompt(self):
+        """Return the prompt with additional instruction text removed"""
+        if not self.prompt:
+            return ""
+        
+        # Remove the additional instruction text that gets appended to prompts
+        clean_text = self.prompt
+        
+        # Remove the "Additional instruction: Make sure to keep response short and consice." part
+        if "Additional instruction: Make sure to keep response short and consice." in clean_text:
+            clean_text = clean_text.replace("Additional instruction: Make sure to keep response short and consice.", "").strip()
+        
+        # Also handle slight variations in spacing/punctuation
+        if "Additional instruction: Make sure to keep response short and concise." in clean_text:
+            clean_text = clean_text.replace("Additional instruction: Make sure to keep response short and concise.", "").strip()
+            
+        return clean_text
+
 
 class ScanStatus(models.Model):
     """Model to track blockchain scanning progress"""
