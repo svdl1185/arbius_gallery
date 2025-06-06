@@ -121,42 +121,59 @@ class ArbitrumScanner:
             submitter = '0x' + log['topics'][2][-40:] if len(log['topics']) > 2 else None  # Get address from topic
             model_id = log['topics'][3] if len(log['topics']) > 3 else None
             
-            # Parse the data for fee and input
+            # Parse the data for fee (the event data only contains fee, not the input)
             data = log['data'][2:]  # Remove '0x' prefix
             
             # Fee is the first 32 bytes (64 hex chars)
             fee_hex = data[:64] if len(data) >= 64 else '0'
             fee = int(fee_hex, 16) if fee_hex != '0' else 0
             
-            # Input data starts after fee and offset information
-            # The input is hex-encoded JSON
+            # For the input data, we need to get it from the original transaction
             input_data = None
             prompt = None
             input_parameters = None
             
             try:
-                # Skip fee (64 chars) and two offset fields (64 chars each) = 192 chars
-                if len(data) > 192:
-                    # Find the input data length and content
-                    input_start = 192
-                    # Next 64 chars are the length of the input data
-                    input_length_hex = data[input_start:input_start+64]
-                    input_length = int(input_length_hex, 16) * 2  # Convert to hex chars
-                    
-                    # Extract the actual input data
-                    input_hex_start = input_start + 64
-                    input_hex = data[input_hex_start:input_hex_start+input_length]
-                    
-                    # Convert hex to bytes, then to string
-                    input_bytes = bytes.fromhex(input_hex)
-                    input_string = input_bytes.decode('utf-8', errors='ignore')
-                    
-                    # Parse JSON input
-                    input_parameters = json.loads(input_string)
-                    prompt = input_parameters.get('prompt', '')
-                    
+                # Get the transaction data to extract the input parameter
+                response = requests.get(f"https://api.arbiscan.io/api?module=proxy&action=eth_getTransactionByHash&txhash={log['transactionHash']}&apikey={self.api_key}")
+                if response.status_code == 200:
+                    tx_data = response.json()
+                    if tx_data.get('result') and tx_data['result'].get('input'):
+                        tx_input = tx_data['result']['input']
+                        
+                        # Parse the transaction input to extract the task input parameter
+                        if tx_input.startswith('0x') and len(tx_input) > 10:
+                            param_data = tx_input[10:]  # Remove function signature
+                            
+                            # For submitTask, parameters are: version, owner, model, fee, input
+                            # The input parameter is at offset specified in the 5th parameter
+                            if len(param_data) >= 320:  # At least 5*64 chars
+                                input_offset_hex = param_data[256:320]  # 5th parameter (input offset)
+                                
+                                try:
+                                    offset = int(input_offset_hex, 16) * 2  # Convert to hex chars
+                                    
+                                    if len(param_data) > offset + 64:
+                                        # Get input data length and content
+                                        input_length_hex = param_data[offset:offset+64]
+                                        input_length = int(input_length_hex, 16) * 2  # Convert to hex chars
+                                        
+                                        input_hex_start = offset + 64
+                                        input_hex = param_data[input_hex_start:input_hex_start+input_length]
+                                        
+                                        if input_hex:
+                                            input_bytes = bytes.fromhex(input_hex)
+                                            input_string = input_bytes.decode('utf-8', errors='ignore')
+                                            
+                                            # Parse JSON input
+                                            input_parameters = json.loads(input_string)
+                                            prompt = input_parameters.get('prompt', '')
+                                            
+                                except (ValueError, json.JSONDecodeError) as e:
+                                    logger.debug(f"Could not parse input data from transaction {log['transactionHash']}: {e}")
+                            
             except Exception as e:
-                logger.warning(f"Could not parse input data from task {task_id}: {e}")
+                logger.warning(f"Could not get transaction data for task {task_id}: {e}")
             
             return {
                 'task_id': task_id,
@@ -221,8 +238,13 @@ class ArbitrumScanner:
             multihash_pattern = re.compile(r'1220([a-fA-F0-9]{64})')
             matches = multihash_pattern.findall(param_data)
             
-            cids = []
-            for match in matches:
+            # Also extract task IDs from the batch solution
+            # Batch solutions contain task IDs in the first part of the data
+            task_id_pattern = re.compile(r'([a-fA-F0-9]{64})')
+            task_id_matches = task_id_pattern.findall(param_data[:len(matches)*64*2])  # Look for task IDs in first part
+            
+            cids_with_task_ids = []
+            for i, match in enumerate(matches):
                 try:
                     # Reconstruct the full multihash
                     multihash_hex = "1220" + match
@@ -233,15 +255,19 @@ class ArbitrumScanner:
                     
                     # Validate CID format with our improved validation
                     if self.is_valid_cid(cid):
-                        if cid not in cids:
-                            cids.append(cid)
-                            print(f"      Found valid CID: {cid}")
+                        # Try to get corresponding task ID
+                        task_id = None
+                        if i < len(task_id_matches):
+                            task_id = '0x' + task_id_matches[i]
+                        
+                        cids_with_task_ids.append((cid, task_id))
+                        print(f"      Found valid CID: {cid} (task: {task_id})")
                         
                 except Exception:
                     continue
             
-            print(f"      Extracted {len(cids)} valid CIDs from batch solution")
-            return cids
+            print(f"      Extracted {len(cids_with_task_ids)} valid CIDs from batch solution")
+            return cids_with_task_ids
             
         except Exception as e:
             print(f"      Error extracting CIDs from batch solution: {e}")
@@ -254,6 +280,11 @@ class ArbitrumScanner:
             
             # Remove function signature (first 10 characters)
             param_data = input_data[10:]
+            
+            # For single solutions, task ID is typically the first 64 characters
+            task_id = None
+            if len(param_data) >= 64:
+                task_id = '0x' + param_data[:64]
             
             # Find multihash pattern
             multihash_pos = param_data.find('1220')
@@ -268,8 +299,8 @@ class ArbitrumScanner:
                     
                     # Validate CID format with our improved validation
                     if self.is_valid_cid(cid):
-                        print(f"      Found valid CID: {cid}")
-                        return [cid]  # Return as list for consistency
+                        print(f"      Found valid CID: {cid} (task: {task_id})")
+                        return [(cid, task_id)]  # Return as list of tuples for consistency
                         
                 except Exception:
                     pass
@@ -312,8 +343,11 @@ class ArbitrumScanner:
         """Scan a range of blocks for Arbius images"""
         print(f"🔍 Scanning blocks {start_block} to {end_block}")
         
-        # Get task information from events first
-        task_info = self.get_task_information(start_block, end_block)
+        # Get task information from a broader range of events
+        # Tasks are submitted before solutions, so we need to look back further
+        task_range_start = max(0, start_block - 5000)  # Look back 5000 blocks for task submissions
+        print(f"   Getting task information from broader range: {task_range_start} to {end_block}")
+        task_info = self.get_task_information(task_range_start, end_block)
         
         # Get all transactions in the range
         transactions = self.get_contract_transactions(start_block, end_block)
@@ -323,6 +357,14 @@ class ArbitrumScanner:
         single_solutions = [tx for tx in transactions if tx.get('input', '').startswith(self.submit_solution_single_sig)]
         
         print(f"   Found {len(batch_solutions)} batch solutions, {len(single_solutions)} single solutions")
+        print(f"   Found {len(task_info)} task submissions in broader range")
+        
+        # DEBUG: Print some task info to see what we found
+        if task_info:
+            print("   Sample task data:")
+            for i, (task_id, data) in enumerate(list(task_info.items())[:3]):
+                prompt_preview = data.get('prompt', 'No prompt')[:50] + "..." if data.get('prompt') and len(data.get('prompt', '')) > 50 else data.get('prompt', 'No prompt')
+                print(f"     Task {task_id[:20]}...: \"{prompt_preview}\"")
         
         new_images = []
         
@@ -342,17 +384,8 @@ class ArbitrumScanner:
                 cids = self.extract_cids_from_batch_solution(tx)
                 print(f"   Batch transaction {tx['hash'][:20]}... extracted {len(cids)} CIDs")
                 
-                for cid in cids:
+                for cid, task_id in cids:
                     if not ArbiusImage.objects.filter(cid=cid).exists():
-                        # Extract task ID from transaction data
-                        task_id = '0x0000000000000000000000000000000000000000000000000000000000000000'
-                        try:
-                            hex_data = tx['input'][10:]  # Remove 0x and function selector
-                            if len(hex_data) >= 64:
-                                task_id = '0x' + hex_data[:64]
-                        except:
-                            pass
-                        
                         # Get task information if available
                         task_data = task_info.get(task_id, {})
                         model_id = task_data.get('model_id')
@@ -403,19 +436,10 @@ class ArbitrumScanner:
             try:
                 cids = self.extract_cids_from_single_solution(tx)
                 if cids:
-                    cid = cids[0]  # Single CID
+                    cid, task_id = cids[0]  # Single CID and task ID
                     print(f"   Single transaction {tx['hash'][:20]}... extracted CID: {cid}")
                     
                     if not ArbiusImage.objects.filter(cid=cid).exists():
-                        # Extract task ID from transaction data
-                        task_id = '0x0000000000000000000000000000000000000000000000000000000000000000'
-                        try:
-                            hex_data = tx['input'][10:]  # Remove 0x and function selector
-                            if len(hex_data) >= 64:
-                                task_id = '0x' + hex_data[:64]
-                        except:
-                            pass
-                        
                         # Get task information if available
                         task_data = task_info.get(task_id, {})
                         model_id = task_data.get('model_id')
