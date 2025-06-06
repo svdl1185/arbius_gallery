@@ -13,13 +13,18 @@ class Command(BaseCommand):
         parser.add_argument(
             '--blocks',
             type=int,
-            default=100,
-            help='Number of recent blocks to scan (default: 100)'
+            default=1000,
+            help='Number of recent blocks to scan (default: 1000)'
         )
         parser.add_argument(
             '--minutes',
             type=int,
             help='Scan the last N minutes of blocks for images with prompts only'
+        )
+        parser.add_argument(
+            '--deep-scan',
+            action='store_true',
+            help='Run a deep scan to catch missed historical images (last 3 days)'
         )
         parser.add_argument(
             '--quiet',
@@ -31,17 +36,23 @@ class Command(BaseCommand):
         scanner = ArbitrumScanner()
         
         if not options['quiet']:
-            if options['minutes']:
+            if options['deep_scan']:
+                self.stdout.write('🔍 Running deep scan for missed images...')
+            elif options['minutes']:
                 self.stdout.write(f'🔍 Scanning last {options["minutes"]} minutes for images with prompts...')
             else:
-                self.stdout.write('🔍 Scanning for new Arbius images...')
+                self.stdout.write('🔍 Scanning for new Arbius images with overlap detection...')
         
         try:
             # Choose scanning method based on arguments
-            if options['minutes']:
+            if options['deep_scan']:
+                # Deep scan covers last 3 days to catch missed images
+                new_images = scanner.scan_recent_days(days=3)
+            elif options['minutes']:
                 new_images = scanner.scan_recent_minutes(options['minutes'])
             else:
-                new_images = scanner.scan_recent_blocks(options['blocks'])
+                # Use new overlap-detecting scan method
+                new_images = scanner.scan_with_overlap_detection(options['blocks'])
             
             if new_images:
                 if not options['quiet']:

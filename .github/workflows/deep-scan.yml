@@ -1,13 +1,13 @@
-name: Arbius Image Scanner
+name: Deep Scan for Missed Images
 
 on:
   schedule:
-    # Run every 5 minutes for frequent scanning
-    - cron: '*/5 * * * *'  # Every 5 minutes
+    # Run deep scan every 6 hours to catch missed images
+    - cron: '0 */6 * * *'  # Every 6 hours at minute 0
   workflow_dispatch: # Allow manual triggering
 
 jobs:
-  scan:
+  deep_scan:
     runs-on: ubuntu-latest
     
     steps:
@@ -15,10 +15,10 @@ jobs:
       run: |
         curl https://cli-assets.heroku.com/install.sh | sh
         
-    - name: Scan for new Arbius images
+    - name: Run deep scan for missed images
       run: |
         export PATH="$PATH:$HOME/.local/share/heroku/bin"
         export HEROKU_API_KEY="${{ secrets.HEROKU_API_KEY }}"
-        heroku run "python3 manage.py scan_arbius --blocks 1000 --quiet" --app ${{ secrets.HEROKU_APP_NAME }}
+        heroku run "python3 manage.py scan_arbius --deep-scan --quiet" --app ${{ secrets.HEROKU_APP_NAME }}
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }} 

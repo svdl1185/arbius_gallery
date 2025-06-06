@@ -364,8 +364,17 @@ class ArbitrumScanner:
         
         # Get task information from a broader range of events
         # Tasks are submitted before solutions, so we need to look back further
-        task_range_start = max(0, start_block - 5000)  # Look back 5000 blocks for task submissions
-        print(f"   Getting task information from broader range: {task_range_start} to {end_block}")
+        # Use adaptive range based on scan size - larger scans need more lookback
+        block_range = end_block - start_block
+        if block_range <= 1000:
+            lookback_blocks = 5000  # Standard lookback for small ranges
+        elif block_range <= 5000:
+            lookback_blocks = 10000  # More lookback for medium ranges
+        else:
+            lookback_blocks = 20000  # Even more lookback for large ranges (deep scans)
+            
+        task_range_start = max(0, start_block - lookback_blocks)
+        print(f"   Getting task information from broader range: {task_range_start} to {end_block} (lookback: {lookback_blocks} blocks)")
         task_info = self.get_task_information(task_range_start, end_block)
         
         # Get all transactions in the range
@@ -808,3 +817,141 @@ class ArbitrumScanner:
             except:
                 pass
             return 0 
+
+    def scan_with_overlap_detection(self, block_range=1000):
+        """Scan with overlap detection to ensure no blocks are missed"""
+        try:
+            logger.info(f"Starting overlap-detecting scan with {block_range} block range...")
+            
+            # Get current scan status
+            status, created = ScanStatus.objects.get_or_create(
+                id=1,
+                defaults={'last_scanned_block': 0}
+            )
+            
+            if status.scan_in_progress:
+                logger.warning("Scan already in progress, skipping...")
+                return []
+            
+            # Set scan in progress
+            status.scan_in_progress = True
+            status.save()
+            
+            latest_block = self.get_latest_block()
+            if not latest_block:
+                logger.error("Could not get latest block number")
+                status.scan_in_progress = False
+                status.save()
+                return []
+            
+            # Calculate scan range with overlap detection
+            if status.last_scanned_block == 0:
+                # First run - scan recent blocks
+                start_block = latest_block - block_range
+            else:
+                # Subsequent runs - start from last scanned block minus overlap
+                overlap_blocks = 100  # 100 block overlap to ensure we don't miss anything
+                start_block = max(0, status.last_scanned_block - overlap_blocks)
+            
+            end_block = latest_block
+            
+            if start_block >= end_block:
+                logger.info("No new blocks to scan")
+                status.scan_in_progress = False
+                status.save()
+                return []
+            
+            logger.info(f"Overlap-detecting scan from block {start_block} to {end_block} (range: {end_block - start_block} blocks)")
+            
+            new_images = self.scan_blocks(start_block, end_block)
+            
+            # Update scan status
+            self.update_scan_status(end_block, len(new_images))
+            
+            if len(new_images) > 0:
+                logger.info(f"🎉 Overlap-detecting scan found {len(new_images)} new images")
+            
+            return new_images
+            
+        except Exception as e:
+            logger.error(f"Error during overlap-detecting scan: {e}")
+            # Make sure to reset scan in progress
+            try:
+                status = ScanStatus.objects.get(id=1)
+                status.scan_in_progress = False
+                status.save()
+            except:
+                pass
+            return []
+
+    def scan_recent_days(self, days=3):
+        """Deep scan for the last N days to catch missed historical images"""
+        try:
+            logger.info(f"Starting deep scan of last {days} days...")
+            
+            # Get current scan status
+            status, created = ScanStatus.objects.get_or_create(
+                id=1,
+                defaults={'last_scanned_block': 0}
+            )
+            
+            if status.scan_in_progress:
+                logger.warning("Scan already in progress, skipping deep scan...")
+                return []
+            
+            # Set scan in progress
+            status.scan_in_progress = True
+            status.save()
+            
+            latest_block = self.get_latest_block()
+            if not latest_block:
+                logger.error("Could not get latest block number")
+                status.scan_in_progress = False
+                status.save()
+                return []
+            
+            # Calculate blocks for time period
+            # Arbitrum: ~1 block per second average, so:
+            # 1 day = 86,400 seconds ≈ 86,400 blocks
+            # 3 days ≈ 259,200 blocks
+            blocks_for_period = days * 86400  # Conservative estimate
+            
+            start_block = latest_block - blocks_for_period
+            end_block = latest_block
+            
+            logger.info(f"Deep scanning last {days} days: blocks {start_block} to {end_block} ({blocks_for_period} blocks)")
+            
+            # Scan in chunks to handle large ranges
+            chunk_size = 2000  # Larger chunks for deep scan
+            total_new_images = 0
+            
+            for chunk_start in range(start_block, end_block + 1, chunk_size):
+                chunk_end = min(chunk_start + chunk_size - 1, end_block)
+                logger.info(f"Deep scanning chunk: {chunk_start} to {chunk_end}")
+                
+                new_images = self.scan_blocks(chunk_start, chunk_end)
+                total_new_images += len(new_images)
+                
+                # Update progress
+                if len(new_images) > 0:
+                    logger.info(f"Found {len(new_images)} new images in deep scan chunk")
+                
+                # Shorter delay for deep scans
+                time.sleep(0.1)
+            
+            # Update scan status
+            self.update_scan_status(end_block, total_new_images)
+            
+            logger.info(f"🎉 Deep scan complete! Found {total_new_images} new images")
+            return total_new_images
+            
+        except Exception as e:
+            logger.error(f"Error during deep scan: {e}")
+            # Make sure to reset scan in progress
+            try:
+                status = ScanStatus.objects.get(id=1)
+                status.scan_in_progress = False
+                status.save()
+            except:
+                pass 
+            return [] 
