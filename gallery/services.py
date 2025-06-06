@@ -374,24 +374,59 @@ class ArbitrumScanner:
         
         return False, None
     
-    def scan_blocks(self, start_block, end_block):
-        """Scan a range of blocks for Arbius images"""
-        print(f"🔍 Scanning blocks {start_block} to {end_block}")
+    def find_task_by_id_optimized(self, task_id, solution_block, max_search_range=10000):
+        """Find TaskSubmitted event using task ID with optimized block range search
+        This is the efficient method that uses direct task ID filtering instead of scanning all events"""
         
-        # Get task information from a broader range of events
-        # Tasks are submitted before solutions, so we need to look back further
-        # Use adaptive range based on scan size - larger scans need more lookback
-        block_range = end_block - start_block
-        if block_range <= 1000:
-            lookback_blocks = 20000  # Increased from 5000 to 20000
-        elif block_range <= 5000:
-            lookback_blocks = 50000  # Increased from 10000 to 50000
-        else:
-            lookback_blocks = 100000  # Increased from 20000 to 100000
-            
-        task_range_start = max(0, start_block - lookback_blocks)
-        print(f"   Getting task information from broader range: {task_range_start} to {end_block} (lookback: {lookback_blocks} blocks)")
-        task_info = self.get_task_information(task_range_start, end_block)
+        # Use progressively larger search ranges - most tasks are found quickly
+        search_ranges = [
+            (solution_block - 1000, solution_block),              # Very close: 1k blocks
+            (solution_block - 5000, solution_block - 1000),       # Medium: 4k blocks  
+            (solution_block - max_search_range, solution_block - 5000),  # Wider: remaining blocks
+        ]
+        
+        for start_block, end_block in search_ranges:
+            if start_block < 0:
+                start_block = 0
+                
+            if start_block >= end_block:
+                continue
+                
+            try:
+                self._rate_limit()
+                
+                # Direct lookup using task ID filter - this is the key optimization!
+                params = {
+                    'module': 'logs',
+                    'action': 'getLogs',
+                    'address': self.engine_address,
+                    'topic0': self.task_submitted_topic,
+                    'topic1': task_id,  # Direct filter by task ID - no scanning needed!
+                    'fromBlock': start_block,
+                    'toBlock': end_block,
+                    'apikey': self.api_key
+                }
+                
+                response = requests.get(self.base_url, params=params, timeout=15)
+                data = response.json()
+                
+                if data.get('status') == '1' and data.get('result'):
+                    log = data['result'][0]  # Should be exactly one result
+                    logger.info(f"Found task {task_id[:20]}... in range {start_block}-{end_block}")
+                    
+                    # Parse the complete task data
+                    task_data = self.parse_task_submitted_event(log)
+                    return task_data
+                    
+            except Exception as e:
+                logger.warning(f"Error searching range {start_block}-{end_block} for task {task_id[:20]}...: {e}")
+                continue
+        
+        return None
+
+    def scan_blocks(self, start_block, end_block):
+        """Scan a range of blocks for Arbius images with integrated optimized task lookup"""
+        print(f"🔍 Scanning blocks {start_block} to {end_block}")
         
         # Get all transactions in the range
         transactions = self.get_contract_transactions(start_block, end_block)
@@ -401,14 +436,6 @@ class ArbitrumScanner:
         single_solutions = [tx for tx in transactions if tx.get('input', '').startswith(self.submit_solution_single_sig)]
         
         print(f"   Found {len(single_solutions)} single solution transactions (skipping bulk submissions)")
-        print(f"   Found {len(task_info)} task submissions in broader range")
-        
-        # DEBUG: Print some task info to see what we found
-        if task_info:
-            print("   Sample task data:")
-            for i, (task_id, data) in enumerate(list(task_info.items())[:3]):
-                prompt_preview = data.get('prompt', 'No prompt')[:50] + "..." if data.get('prompt') and len(data.get('prompt', '')) > 50 else data.get('prompt', 'No prompt')
-                print(f"     Task {task_id[:20]}...: \"{prompt_preview}\"")
         
         new_images = []
         
@@ -422,7 +449,7 @@ class ArbitrumScanner:
             else:
                 return int(block_num_str)
         
-        # Process ONLY single solutions (real images)
+        # Process ONLY single solutions (real images) with optimized task lookup
         for tx in single_solutions:
             try:
                 cids = self.extract_cids_from_single_solution(tx)
@@ -431,29 +458,31 @@ class ArbitrumScanner:
                     print(f"   Single transaction {tx['hash'][:20]}... extracted CID: {cid}")
                     
                     if not ArbiusImage.objects.filter(cid=cid).exists():
-                        # Get task information if available
-                        task_data = task_info.get(task_id, {})
-                        model_id = task_data.get('model_id')
-                        prompt = task_data.get('prompt')
-                        input_parameters = task_data.get('input_parameters')
+                        # Convert block number properly
+                        block_number = convert_block_number(tx['blockNumber'])
+                        
+                        # Use optimized task lookup instead of broad range search
+                        task_data = None
+                        if task_id:
+                            task_data = self.find_task_by_id_optimized(task_id, block_number)
+                        
+                        # Extract task information
+                        model_id = task_data.get('model_id') if task_data else None
+                        prompt = task_data.get('prompt') if task_data else None
+                        input_parameters = task_data.get('input_parameters') if task_data else None
+                        task_submitter = task_data.get('submitter') if task_data else None
                         
                         # Check IPFS accessibility first
                         is_accessible, gateway = self.check_ipfs_accessibility(cid)
                         
                         if is_accessible:
-                            # Save image regardless of whether we have a prompt
-                            # We can try to fetch prompt later via background tasks
+                            # Save image with task data found via optimized lookup
                             
                             # Construct proper IPFS URLs
                             ipfs_url = f"{self.ipfs_gateways[0]}{cid}"
                             image_url = f"{self.ipfs_gateways[0]}{cid}/out-1.png"
                             
-                            # Convert block number properly
-                            block_number = convert_block_number(tx['blockNumber'])
                             timestamp = datetime.fromtimestamp(int(tx['timeStamp']), tz=timezone.get_current_timezone())
-                            
-                            # Get task submitter from task data (original requester)
-                            task_submitter = task_data.get('submitter') if task_data else None
                             
                             # Create image record with all required fields
                             image = ArbiusImage.objects.create(
@@ -471,20 +500,27 @@ class ArbitrumScanner:
                                 ipfs_gateway=gateway or '',
                                 model_id=model_id,
                                 prompt=prompt or '',  # Store empty string if no prompt
-                                input_parameters=input_parameters
+                                input_parameters=input_parameters,
+                                task_submitter=task_submitter  # Original task requester
                             )
                             new_images.append(image)
                             
-                            # Enhanced logging to show the distinction
+                            # Enhanced logging to show the distinction and task data found
                             if task_submitter and task_submitter != tx['from']:
                                 print(f"      ✅ Saved image - Task by: {task_submitter[:10]}..., Solution by: {tx['from'][:10]}...")
                             else:
                                 print(f"      ✅ Saved image - Solution by: {tx['from'][:10]}... (task submitter unknown)")
                             
                             if prompt and prompt.strip():
-                                print(f"         Prompt: \"{prompt[:50]}...\"")
+                                prompt_preview = prompt[:50] + "..." if len(prompt) > 50 else prompt
+                                print(f"         📝 Prompt: \"{prompt_preview}\"")
                             else:
-                                print(f"         No prompt found yet - will retry later")
+                                print(f"         ⚠️ No prompt found for task {task_id[:20]}...")
+                                
+                            if task_data:
+                                print(f"         🎯 Task data found via optimized lookup (1-3 API calls vs 100+)")
+                            else:
+                                print(f"         📊 No task data found - may be older task")
                         else:
                             print(f"      ⏭️ Skipping {cid[:20]}... (not accessible via IPFS)")
                         
