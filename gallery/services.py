@@ -33,6 +33,10 @@ class ArbitrumScanner:
         self.base_url = "https://api.arbiscan.io/api"
         self.engine_address = "0x9b51Ef044d3486A1fB0A2D55A6e0CeeAdd323E66"
         
+        # Rate limiting - max 5 calls per second as per the error message
+        self.last_api_call = 0
+        self.min_call_interval = 0.25  # 250ms between calls = 4 calls per second
+        
         # Function signatures
         self.submit_task_sig = "0x08745dd1"
         self.submit_solution_batch_sig = "0x65d445fb"  # Batch submissions (25 CIDs)
@@ -49,9 +53,21 @@ class ArbitrumScanner:
         # TaskSubmitted event signature
         self.task_submitted_topic = "0xc3d3e0544c80e3bb83f62659259ae1574f72a91515ab3cae3dd75cf77e1b0aea"
         
+    def _rate_limit(self):
+        """Ensure we don't exceed the API rate limit"""
+        current_time = time.time()
+        time_since_last_call = current_time - self.last_api_call
+        
+        if time_since_last_call < self.min_call_interval:
+            sleep_time = self.min_call_interval - time_since_last_call
+            time.sleep(sleep_time)
+        
+        self.last_api_call = time.time()
+        
     def get_latest_block(self):
         """Get the latest block number from Arbitrum"""
         try:
+            self._rate_limit()
             response = requests.get(f"{self.base_url}?module=proxy&action=eth_blockNumber&apikey={self.api_key}", timeout=30)
             data = response.json()
             return int(data['result'], 16)
@@ -62,6 +78,7 @@ class ArbitrumScanner:
     def get_contract_transactions(self, start_block, end_block):
         """Get all transactions to the engine contract in a block range"""
         try:
+            self._rate_limit()
             params = {
                 'module': 'account',
                 'action': 'txlist',
@@ -90,6 +107,7 @@ class ArbitrumScanner:
     def get_contract_logs(self, start_block, end_block, topic):
         """Get event logs from the engine contract in a block range"""
         try:
+            self._rate_limit()
             params = {
                 'module': 'logs',
                 'action': 'getLogs',
@@ -135,6 +153,7 @@ class ArbitrumScanner:
             
             try:
                 # Get the transaction data to extract the input parameter
+                self._rate_limit()
                 response = requests.get(f"https://api.arbiscan.io/api?module=proxy&action=eth_getTransactionByHash&txhash={log['transactionHash']}&apikey={self.api_key}")
                 if response.status_code == 200:
                     tx_data = response.json()
