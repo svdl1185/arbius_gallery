@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db import models
-from django.db.models import Q, Length
+from django.db.models import Q
+from django.db.models.functions import Length
 from gallery.models import ArbiusImage
 from gallery.services import ArbitrumScanner
 

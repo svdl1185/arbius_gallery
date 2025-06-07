@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.core.paginator import Paginator
-from django.db.models import Q, Length, Count
+from django.db.models import Q, Count
+from django.db.models.functions import Length
 from django.utils import timezone
 from datetime import timedelta
 from .models import ArbiusImage, ScanStatus
