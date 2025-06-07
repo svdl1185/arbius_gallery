@@ -47,11 +47,11 @@ def search(request):
     query = request.GET.get('q', '').strip()
     
     if query:
-        # Search in both prompt and clean_prompt fields
+        # Search only in the prompt field since clean_prompt doesn't exist in the database
         images = ArbiusImage.objects.exclude(
             prompt__startswith="<|begin_of_text|>"
         ).filter(
-            Q(prompt__icontains=query) | Q(clean_prompt__icontains=query)
+            prompt__icontains=query
         ).order_by('-is_accessible', '-timestamp')
     else:
         # If no query, redirect to regular index
