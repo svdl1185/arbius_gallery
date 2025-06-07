@@ -24,6 +24,8 @@ def index(request):
         prompt__startswith='{"MessageHistory"'
     ).exclude(
         prompt_length__gt=5000  # Exclude extremely long prompts (likely text outputs)
+    ).exclude(
+        prompt__icontains='hitler'  # Filter out Hitler-related content
     ).filter(
         is_accessible=True  # Only show accessible images
     ).order_by('-timestamp')
@@ -82,6 +84,8 @@ def search(request):
             prompt__startswith='{"MessageHistory"'
         ).exclude(
             prompt_length__gt=5000  # Exclude extremely long prompts (likely text outputs)
+        ).exclude(
+            prompt__icontains='hitler'  # Filter out Hitler-related content
         ).filter(
             is_accessible=True  # Only show accessible images
         ).filter(q_objects).order_by('-timestamp')
@@ -99,6 +103,8 @@ def search(request):
             prompt__startswith='{"MessageHistory"'
         ).exclude(
             prompt_length__gt=5000
+        ).exclude(
+            prompt__icontains='hitler'  # Filter out Hitler-related content
         ).filter(
             is_accessible=True
         ).order_by('-timestamp')
@@ -116,6 +122,8 @@ def search(request):
         prompt__startswith='{"MessageHistory"'
     ).exclude(
         prompt_length__gt=5000
+    ).exclude(
+        prompt__icontains='hitler'  # Filter out Hitler-related content
     ).filter(is_accessible=True).count()
     
     # Count new images in the last 24 hours
@@ -132,6 +140,8 @@ def search(request):
         prompt__startswith='{"MessageHistory"'
     ).exclude(
         prompt_length__gt=5000
+    ).exclude(
+        prompt__icontains='hitler'  # Filter out Hitler-related content
     ).filter(
         is_accessible=True,
         timestamp__gte=twenty_four_hours_ago
@@ -151,6 +161,8 @@ def search(request):
         prompt__startswith='{"MessageHistory"'
     ).exclude(
         prompt_length__gt=5000
+    ).exclude(
+        prompt__icontains='hitler'  # Filter out Hitler-related content
     ).filter(
         is_accessible=True,
         timestamp__gte=one_week_ago
@@ -191,6 +203,8 @@ def image_detail(request, image_id):
         prompt__startswith='{"MessageHistory"'
     ).exclude(
         prompt_length__gt=5000
+    ).exclude(
+        prompt__icontains='hitler'  # Filter out Hitler-related content
     ).filter(
         is_accessible=True
     ).exclude(id=image.id).order_by('-timestamp')[:6]
@@ -218,6 +232,8 @@ def info(request):
         prompt__startswith='{"MessageHistory"'
     ).exclude(
         prompt_length__gt=5000
+    ).exclude(
+        prompt__icontains='hitler'  # Filter out Hitler-related content
     ).filter(is_accessible=True)
     
     # Calculate comprehensive stats
