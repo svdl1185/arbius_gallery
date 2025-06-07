@@ -236,18 +236,8 @@ def info(request):
     else:
         daily_average = 0
     
-    # Most popular model overall
-    most_popular_model = valid_images.filter(model_id__isnull=False).exclude(model_id='').values('model_id').annotate(count=Count('model_id')).order_by('-count').first()
-    most_popular_model_id = most_popular_model['model_id'] if most_popular_model else None
-    most_popular_model_short = f"{most_popular_model_id[:8]}...{most_popular_model_id[-8:]}" if most_popular_model_id and len(most_popular_model_id) > 16 else (most_popular_model_id or "N/A")
-    
-    # Most popular model this week
-    one_week_ago = timezone.now() - timedelta(weeks=1)
-    most_popular_model_week = valid_images.filter(timestamp__gte=one_week_ago, model_id__isnull=False).exclude(model_id='').values('model_id').annotate(count=Count('model_id')).order_by('-count').first()
-    most_popular_model_week_id = most_popular_model_week['model_id'] if most_popular_model_week else None
-    most_popular_model_week_short = f"{most_popular_model_week_id[:8]}...{most_popular_model_week_id[-8:]}" if most_popular_model_week_id and len(most_popular_model_week_id) > 16 else (most_popular_model_week_id or "N/A")
-    
     # Images generated this week
+    one_week_ago = timezone.now() - timedelta(weeks=1)
     images_this_week = valid_images.filter(timestamp__gte=one_week_ago).count()
     
     # Get data for cumulative chart (monthly data points for better performance)
@@ -306,8 +296,6 @@ def info(request):
         'total_images': total_images,
         'images_with_prompts': images_with_prompts,
         'daily_average': daily_average,
-        'most_popular_model_short': most_popular_model_short,
-        'most_popular_model_week_short': most_popular_model_week_short,
         'images_this_week': images_this_week,
         'last_scan_time': last_scan_time,
         'last_scanned_block': last_scanned_block,

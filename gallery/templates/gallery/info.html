@@ -129,23 +129,6 @@
                     </div>
                 </div>
                 
-                <div class="popular-models mt-4">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="model-stat">
-                                <strong>Most Popular Model (All Time):</strong>
-                                <div class="model-id">{{ most_popular_model_short }}</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="model-stat">
-                                <strong>Most Popular Model (This Week):</strong>
-                                <div class="model-id">{{ most_popular_model_week_short }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
                 {% if last_scan_time %}
                     <div class="mt-3 text-muted small">
                         <i class="bi bi-clock"></i> Last updated: {{ last_scan_time|date:"M d, Y H:i" }} UTC
