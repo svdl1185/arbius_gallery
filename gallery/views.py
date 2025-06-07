@@ -35,7 +35,7 @@ def index(request):
     images_this_week = images.filter(timestamp__gte=one_week_ago).count()
     
     # Pagination
-    paginator = Paginator(images, 25)  # Show 25 images per page
+    paginator = Paginator(images, 24)  # Show 24 images per page (6 rows × 4 columns)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
@@ -125,7 +125,7 @@ def search(request):
     ).count()
     
     # Pagination
-    paginator = Paginator(images, 25)  # Show 25 images per page
+    paginator = Paginator(images, 24)  # Show 24 images per page (6 rows × 4 columns)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
