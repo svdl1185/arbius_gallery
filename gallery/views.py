@@ -1,10 +1,11 @@
 from django.shortcuts import render, get_object_or_404
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
-from django.db.models.functions import Length
+from django.db.models.functions import Length, TruncDate
 from django.utils import timezone
 from datetime import timedelta
 from .models import ArbiusImage, ScanStatus
+import json
 
 
 def index(request):
@@ -223,9 +224,6 @@ def info(request):
     total_images = valid_images.count()
     images_with_prompts = valid_images.filter(prompt__isnull=False).exclude(prompt='').count()
     
-    # Calculate new statistics
-    unique_models = valid_images.filter(model_id__isnull=False).exclude(model_id='').values('model_id').distinct().count()
-    
     # Calculate daily average (images per day)
     if total_images > 0:
         oldest_image = valid_images.order_by('timestamp').first()
@@ -252,6 +250,50 @@ def info(request):
     # Images generated this week
     images_this_week = valid_images.filter(timestamp__gte=one_week_ago).count()
     
+    # Get data for cumulative chart (monthly data points for better performance)
+    cumulative_data = []
+    if total_images > 0:
+        # Get monthly cumulative counts for the chart
+        monthly_counts = valid_images.extra(
+            select={
+                'month': "DATE_TRUNC('month', timestamp)",
+            }
+        ).values('month').annotate(
+            count=Count('id')
+        ).order_by('month')
+        
+        cumulative_total = 0
+        for entry in monthly_counts:
+            cumulative_total += entry['count']
+            cumulative_data.append({
+                'date': entry['month'].strftime('%Y-%m'),
+                'total': cumulative_total
+            })
+    
+    # Get data for daily chart (last 25 days)
+    twenty_five_days_ago = timezone.now() - timedelta(days=25)
+    daily_data = valid_images.filter(
+        timestamp__gte=twenty_five_days_ago
+    ).annotate(
+        date=TruncDate('timestamp')
+    ).values('date').annotate(
+        count=Count('id')
+    ).order_by('date')
+    
+    # Convert to format suitable for Chart.js
+    daily_chart_data = []
+    for i in range(25):
+        date = (timezone.now() - timedelta(days=24-i)).date()
+        count = 0
+        for entry in daily_data:
+            if entry['date'] == date:
+                count = entry['count']
+                break
+        daily_chart_data.append({
+            'date': date.strftime('%m/%d'),
+            'count': count
+        })
+    
     # Get scan status info
     scan_status = ScanStatus.objects.first()
     last_scan_time = scan_status.last_scan_time if scan_status else None
@@ -263,7 +305,6 @@ def info(request):
     context = {
         'total_images': total_images,
         'images_with_prompts': images_with_prompts,
-        'unique_models': unique_models,
         'daily_average': daily_average,
         'most_popular_model_short': most_popular_model_short,
         'most_popular_model_week_short': most_popular_model_week_short,
@@ -271,6 +312,8 @@ def info(request):
         'last_scan_time': last_scan_time,
         'last_scanned_block': last_scanned_block,
         'recent_images': recent_images,
+        'cumulative_chart_data': json.dumps(cumulative_data),
+        'daily_chart_data': json.dumps(daily_chart_data),
     }
     
     return render(request, 'gallery/info.html', context)
