@@ -374,6 +374,39 @@ class ArbitrumScanner:
         
         return False, None
     
+    def is_valid_image_content(self, cid):
+        """Check if CID actually contains valid image content (not text)"""
+        for gateway in self.ipfs_gateways:
+            try:
+                url = f"{gateway}{cid}/out-1.png"
+                response = requests.head(url, timeout=10)
+                
+                if response.status_code in [200, 301, 302]:
+                    # Check content type
+                    content_type = response.headers.get('content-type', '').lower()
+                    if content_type.startswith('image/'):
+                        return True
+                    
+                    # If no content-type header, try to fetch first few bytes to check image magic numbers
+                    try:
+                        partial_response = requests.get(url, headers={'Range': 'bytes=0-10'}, timeout=5)
+                        if partial_response.status_code in [200, 206]:
+                            content = partial_response.content
+                            
+                            # Check for common image magic numbers
+                            if (content.startswith(b'\x89PNG') or  # PNG
+                                content.startswith(b'\xff\xd8\xff') or  # JPEG
+                                content.startswith(b'GIF8') or  # GIF
+                                content.startswith(b'RIFF') and b'WEBP' in content[:12]):  # WebP
+                                return True
+                    except:
+                        pass
+                        
+            except Exception:
+                continue
+        
+        return False
+    
     def find_task_by_id_optimized(self, task_id, solution_block, max_search_range=10000):
         """Find TaskSubmitted event using task ID with optimized block range search
         This is the efficient method that uses direct task ID filtering instead of scanning all events"""
@@ -476,6 +509,21 @@ class ArbitrumScanner:
                         is_accessible, gateway = self.check_ipfs_accessibility(cid)
                         
                         if is_accessible:
+                            # Additional validation to ensure it's actually an image, not text
+                            is_valid_image = self.is_valid_image_content(cid)
+                            
+                            # Skip if it's not a valid image or contains text model output markers
+                            if not is_valid_image:
+                                print(f"      ⏭️ Skipping {cid[:20]}... (not valid image content)")
+                                continue
+                            
+                            # Skip if prompt indicates it's from a text model
+                            if prompt and (prompt.strip().startswith("<|begin_of_text|>") or 
+                                         prompt.strip().startswith("<|end_of_text|>") or
+                                         len(prompt.strip()) > 5000):  # Extremely long prompts are likely text outputs
+                                print(f"      ⏭️ Skipping {cid[:20]}... (text model output detected)")
+                                continue
+                            
                             # Save image with task data found via optimized lookup
                             
                             # Construct proper IPFS URLs

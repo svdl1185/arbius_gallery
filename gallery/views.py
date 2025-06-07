@@ -9,10 +9,16 @@ from .models import ArbiusImage, ScanStatus
 def index(request):
     """Gallery index view with automatic pagination"""
     # Get all images ordered by accessibility first, then by timestamp
-    # Filter out invalid entries (those with prompts starting with <|begin_of_text|>)
+    # Filter out invalid entries (text model outputs and non-images)
     images = ArbiusImage.objects.exclude(
         prompt__startswith="<|begin_of_text|>"
-    ).order_by('-is_accessible', '-timestamp')
+    ).exclude(
+        prompt__startswith="<|end_of_text|>"
+    ).exclude(
+        prompt__length__gt=5000  # Exclude extremely long prompts (likely text outputs)
+    ).filter(
+        is_accessible=True  # Only show accessible images
+    ).order_by('-timestamp')
     
     # Calculate stats for display
     total_images = images.count()
@@ -26,7 +32,7 @@ def index(request):
     images_this_week = images.filter(timestamp__gte=one_week_ago).count()
     
     # Pagination
-    paginator = Paginator(images, 12)  # Show 12 images per page
+    paginator = Paginator(images, 25)  # Show 25 images per page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
@@ -47,35 +53,66 @@ def search(request):
     query = request.GET.get('q', '').strip()
     
     if query:
-        # Search only in the prompt field since clean_prompt doesn't exist in the database
+        # Search only in the prompt field with improved filtering for text outputs
         images = ArbiusImage.objects.exclude(
             prompt__startswith="<|begin_of_text|>"
+        ).exclude(
+            prompt__startswith="<|end_of_text|>"
+        ).exclude(
+            prompt__length__gt=5000  # Exclude extremely long prompts (likely text outputs)
         ).filter(
+            is_accessible=True,  # Only show accessible images
             prompt__icontains=query
-        ).order_by('-is_accessible', '-timestamp')
+        ).order_by('-timestamp')
     else:
         # If no query, redirect to regular index
         images = ArbiusImage.objects.exclude(
             prompt__startswith="<|begin_of_text|>"
-        ).order_by('-is_accessible', '-timestamp')
+        ).exclude(
+            prompt__startswith="<|end_of_text|>"
+        ).exclude(
+            prompt__length__gt=5000
+        ).filter(
+            is_accessible=True
+        ).order_by('-timestamp')
     
-    # Calculate stats for display
-    total_images = ArbiusImage.objects.exclude(prompt__startswith="<|begin_of_text|>").count()
+    # Calculate stats for display (use same filtering)
+    total_images = ArbiusImage.objects.exclude(
+        prompt__startswith="<|begin_of_text|>"
+    ).exclude(
+        prompt__startswith="<|end_of_text|>"
+    ).exclude(
+        prompt__length__gt=5000
+    ).filter(is_accessible=True).count()
     
     # Count new images in the last 24 hours
     twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
     new_images_24h = ArbiusImage.objects.exclude(
         prompt__startswith="<|begin_of_text|>"
-    ).filter(timestamp__gte=twenty_four_hours_ago).count()
+    ).exclude(
+        prompt__startswith="<|end_of_text|>"
+    ).exclude(
+        prompt__length__gt=5000
+    ).filter(
+        is_accessible=True,
+        timestamp__gte=twenty_four_hours_ago
+    ).count()
     
     # Count new images in the last week
     one_week_ago = timezone.now() - timedelta(weeks=1)
     images_this_week = ArbiusImage.objects.exclude(
         prompt__startswith="<|begin_of_text|>"
-    ).filter(timestamp__gte=one_week_ago).count()
+    ).exclude(
+        prompt__startswith="<|end_of_text|>"
+    ).exclude(
+        prompt__length__gt=5000
+    ).filter(
+        is_accessible=True,
+        timestamp__gte=one_week_ago
+    ).count()
     
     # Pagination
-    paginator = Paginator(images, 12)  # Show 12 images per page
+    paginator = Paginator(images, 25)  # Show 25 images per page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
@@ -96,11 +133,15 @@ def image_detail(request, image_id):
     """Individual image detail view"""
     image = get_object_or_404(ArbiusImage, id=image_id)
     
-    # Get related images for suggestions, filtering out invalid entries
-    related_images = ArbiusImage.objects.filter(
-        is_accessible=True
-    ).exclude(
+    # Get related images for suggestions, filtering out text outputs
+    related_images = ArbiusImage.objects.exclude(
         prompt__startswith="<|begin_of_text|>"
+    ).exclude(
+        prompt__startswith="<|end_of_text|>"
+    ).exclude(
+        prompt__length__gt=5000
+    ).filter(
+        is_accessible=True
     ).exclude(id=image.id).order_by('-timestamp')[:6]
     
     context = {
@@ -113,8 +154,14 @@ def image_detail(request, image_id):
 
 def info(request):
     """Information page about the Arbius gallery and process"""
-    # Filter out invalid entries for consistent stats
-    valid_images = ArbiusImage.objects.exclude(prompt__startswith="<|begin_of_text|>")
+    # Filter out text outputs for consistent stats
+    valid_images = ArbiusImage.objects.exclude(
+        prompt__startswith="<|begin_of_text|>"
+    ).exclude(
+        prompt__startswith="<|end_of_text|>"
+    ).exclude(
+        prompt__length__gt=5000
+    ).filter(is_accessible=True)
     
     # Calculate comprehensive stats
     total_images = valid_images.count()
