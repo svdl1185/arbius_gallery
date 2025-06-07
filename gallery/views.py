@@ -18,6 +18,10 @@ def index(request):
     ).exclude(
         prompt__startswith="<|end_of_text|>"
     ).exclude(
+        prompt__startswith='{"System prompt"'
+    ).exclude(
+        prompt__startswith='{"MessageHistory"'
+    ).exclude(
         prompt_length__gt=5000  # Exclude extremely long prompts (likely text outputs)
     ).filter(
         is_accessible=True  # Only show accessible images
@@ -72,6 +76,10 @@ def search(request):
         ).exclude(
             prompt__startswith="<|end_of_text|>"
         ).exclude(
+            prompt__startswith='{"System prompt"'
+        ).exclude(
+            prompt__startswith='{"MessageHistory"'
+        ).exclude(
             prompt_length__gt=5000  # Exclude extremely long prompts (likely text outputs)
         ).filter(
             is_accessible=True  # Only show accessible images
@@ -84,6 +92,10 @@ def search(request):
             prompt__startswith="<|begin_of_text|>"
         ).exclude(
             prompt__startswith="<|end_of_text|>"
+        ).exclude(
+            prompt__startswith='{"System prompt"'
+        ).exclude(
+            prompt__startswith='{"MessageHistory"'
         ).exclude(
             prompt_length__gt=5000
         ).filter(
@@ -98,6 +110,10 @@ def search(request):
     ).exclude(
         prompt__startswith="<|end_of_text|>"
     ).exclude(
+        prompt__startswith='{"System prompt"'
+    ).exclude(
+        prompt__startswith='{"MessageHistory"'
+    ).exclude(
         prompt_length__gt=5000
     ).filter(is_accessible=True).count()
     
@@ -109,6 +125,10 @@ def search(request):
         prompt__startswith="<|begin_of_text|>"
     ).exclude(
         prompt__startswith="<|end_of_text|>"
+    ).exclude(
+        prompt__startswith='{"System prompt"'
+    ).exclude(
+        prompt__startswith='{"MessageHistory"'
     ).exclude(
         prompt_length__gt=5000
     ).filter(
@@ -124,6 +144,10 @@ def search(request):
         prompt__startswith="<|begin_of_text|>"
     ).exclude(
         prompt__startswith="<|end_of_text|>"
+    ).exclude(
+        prompt__startswith='{"System prompt"'
+    ).exclude(
+        prompt__startswith='{"MessageHistory"'
     ).exclude(
         prompt_length__gt=5000
     ).filter(
@@ -161,6 +185,10 @@ def image_detail(request, image_id):
     ).exclude(
         prompt__startswith="<|end_of_text|>"
     ).exclude(
+        prompt__startswith='{"System prompt"'
+    ).exclude(
+        prompt__startswith='{"MessageHistory"'
+    ).exclude(
         prompt_length__gt=5000
     ).filter(
         is_accessible=True
@@ -183,6 +211,10 @@ def info(request):
         prompt__startswith="<|begin_of_text|>"
     ).exclude(
         prompt__startswith="<|end_of_text|>"
+    ).exclude(
+        prompt__startswith='{"System prompt"'
+    ).exclude(
+        prompt__startswith='{"MessageHistory"'
     ).exclude(
         prompt_length__gt=5000
     ).filter(is_accessible=True)
