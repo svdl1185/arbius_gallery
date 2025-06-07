@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.db import models
+from django.db.models import Q, Length
 from gallery.models import ArbiusImage
 from gallery.services import ArbitrumScanner
 
@@ -25,10 +26,12 @@ class Command(BaseCommand):
         )
         
         # Find potential text outputs based on prompt patterns
-        text_outputs = ArbiusImage.objects.filter(
-            models.Q(prompt__startswith="<|begin_of_text|>") |
-            models.Q(prompt__startswith="<|end_of_text|>") |
-            models.Q(prompt__length__gt=5000)  # Extremely long prompts
+        text_outputs = ArbiusImage.objects.annotate(
+            prompt_length=Length('prompt')
+        ).filter(
+            Q(prompt__startswith="<|begin_of_text|>") |
+            Q(prompt__startswith="<|end_of_text|>") |
+            Q(prompt_length__gt=5000)  # Extremely long prompts
         )
         
         self.stdout.write(f"Found {text_outputs.count()} potential text outputs based on prompt patterns")
@@ -75,12 +78,14 @@ class Command(BaseCommand):
             )
         
         # Show final statistics
-        remaining_images = ArbiusImage.objects.exclude(
+        remaining_images = ArbiusImage.objects.annotate(
+            prompt_length=Length('prompt')
+        ).exclude(
             prompt__startswith="<|begin_of_text|>"
         ).exclude(
             prompt__startswith="<|end_of_text|>"
         ).exclude(
-            prompt__length__gt=5000
+            prompt_length__gt=5000
         ).filter(is_accessible=True).count()
         
         self.stdout.write(f"📊 Gallery now has {remaining_images} valid images") 

@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Length, Count
 from django.utils import timezone
 from datetime import timedelta
 from .models import ArbiusImage, ScanStatus
@@ -10,12 +10,14 @@ def index(request):
     """Gallery index view with automatic pagination"""
     # Get all images ordered by accessibility first, then by timestamp
     # Filter out invalid entries (text model outputs and non-images)
-    images = ArbiusImage.objects.exclude(
+    images = ArbiusImage.objects.annotate(
+        prompt_length=Length('prompt')
+    ).exclude(
         prompt__startswith="<|begin_of_text|>"
     ).exclude(
         prompt__startswith="<|end_of_text|>"
     ).exclude(
-        prompt__length__gt=5000  # Exclude extremely long prompts (likely text outputs)
+        prompt_length__gt=5000  # Exclude extremely long prompts (likely text outputs)
     ).filter(
         is_accessible=True  # Only show accessible images
     ).order_by('-timestamp')
@@ -54,45 +56,53 @@ def search(request):
     
     if query:
         # Search only in the prompt field with improved filtering for text outputs
-        images = ArbiusImage.objects.exclude(
+        images = ArbiusImage.objects.annotate(
+            prompt_length=Length('prompt')
+        ).exclude(
             prompt__startswith="<|begin_of_text|>"
         ).exclude(
             prompt__startswith="<|end_of_text|>"
         ).exclude(
-            prompt__length__gt=5000  # Exclude extremely long prompts (likely text outputs)
+            prompt_length__gt=5000  # Exclude extremely long prompts (likely text outputs)
         ).filter(
             is_accessible=True,  # Only show accessible images
             prompt__icontains=query
         ).order_by('-timestamp')
     else:
         # If no query, redirect to regular index
-        images = ArbiusImage.objects.exclude(
+        images = ArbiusImage.objects.annotate(
+            prompt_length=Length('prompt')
+        ).exclude(
             prompt__startswith="<|begin_of_text|>"
         ).exclude(
             prompt__startswith="<|end_of_text|>"
         ).exclude(
-            prompt__length__gt=5000
+            prompt_length__gt=5000
         ).filter(
             is_accessible=True
         ).order_by('-timestamp')
     
     # Calculate stats for display (use same filtering)
-    total_images = ArbiusImage.objects.exclude(
+    total_images = ArbiusImage.objects.annotate(
+        prompt_length=Length('prompt')
+    ).exclude(
         prompt__startswith="<|begin_of_text|>"
     ).exclude(
         prompt__startswith="<|end_of_text|>"
     ).exclude(
-        prompt__length__gt=5000
+        prompt_length__gt=5000
     ).filter(is_accessible=True).count()
     
     # Count new images in the last 24 hours
     twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
-    new_images_24h = ArbiusImage.objects.exclude(
+    new_images_24h = ArbiusImage.objects.annotate(
+        prompt_length=Length('prompt')
+    ).exclude(
         prompt__startswith="<|begin_of_text|>"
     ).exclude(
         prompt__startswith="<|end_of_text|>"
     ).exclude(
-        prompt__length__gt=5000
+        prompt_length__gt=5000
     ).filter(
         is_accessible=True,
         timestamp__gte=twenty_four_hours_ago
@@ -100,12 +110,14 @@ def search(request):
     
     # Count new images in the last week
     one_week_ago = timezone.now() - timedelta(weeks=1)
-    images_this_week = ArbiusImage.objects.exclude(
+    images_this_week = ArbiusImage.objects.annotate(
+        prompt_length=Length('prompt')
+    ).exclude(
         prompt__startswith="<|begin_of_text|>"
     ).exclude(
         prompt__startswith="<|end_of_text|>"
     ).exclude(
-        prompt__length__gt=5000
+        prompt_length__gt=5000
     ).filter(
         is_accessible=True,
         timestamp__gte=one_week_ago
@@ -134,12 +146,14 @@ def image_detail(request, image_id):
     image = get_object_or_404(ArbiusImage, id=image_id)
     
     # Get related images for suggestions, filtering out text outputs
-    related_images = ArbiusImage.objects.exclude(
+    related_images = ArbiusImage.objects.annotate(
+        prompt_length=Length('prompt')
+    ).exclude(
         prompt__startswith="<|begin_of_text|>"
     ).exclude(
         prompt__startswith="<|end_of_text|>"
     ).exclude(
-        prompt__length__gt=5000
+        prompt_length__gt=5000
     ).filter(
         is_accessible=True
     ).exclude(id=image.id).order_by('-timestamp')[:6]
@@ -155,12 +169,14 @@ def image_detail(request, image_id):
 def info(request):
     """Information page about the Arbius gallery and process"""
     # Filter out text outputs for consistent stats
-    valid_images = ArbiusImage.objects.exclude(
+    valid_images = ArbiusImage.objects.annotate(
+        prompt_length=Length('prompt')
+    ).exclude(
         prompt__startswith="<|begin_of_text|>"
     ).exclude(
         prompt__startswith="<|end_of_text|>"
     ).exclude(
-        prompt__length__gt=5000
+        prompt_length__gt=5000
     ).filter(is_accessible=True)
     
     # Calculate comprehensive stats
@@ -183,7 +199,6 @@ def info(request):
         daily_average = 0
     
     # Most popular model overall
-    from django.db.models import Count
     most_popular_model = valid_images.filter(model_id__isnull=False).exclude(model_id='').values('model_id').annotate(count=Count('model_id')).order_by('-count').first()
     most_popular_model_id = most_popular_model['model_id'] if most_popular_model else None
     most_popular_model_short = f"{most_popular_model_id[:8]}...{most_popular_model_id[-8:]}" if most_popular_model_id and len(most_popular_model_id) > 16 else (most_popular_model_id or "N/A")
