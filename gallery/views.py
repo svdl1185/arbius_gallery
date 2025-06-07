@@ -56,6 +56,14 @@ def search(request):
     query = request.GET.get('q', '').strip()
     
     if query:
+        # Split the query into individual words and create Q objects for each
+        query_words = query.split()
+        q_objects = Q()
+        
+        # Create an AND condition for each word
+        for word in query_words:
+            q_objects &= Q(prompt__icontains=word)
+        
         # Search only in the prompt field with improved filtering for text outputs
         images = ArbiusImage.objects.annotate(
             prompt_length=Length('prompt')
@@ -66,9 +74,8 @@ def search(request):
         ).exclude(
             prompt_length__gt=5000  # Exclude extremely long prompts (likely text outputs)
         ).filter(
-            is_accessible=True,  # Only show accessible images
-            prompt__icontains=query
-        ).order_by('-timestamp')
+            is_accessible=True  # Only show accessible images
+        ).filter(q_objects).order_by('-timestamp')
     else:
         # If no query, redirect to regular index
         images = ArbiusImage.objects.annotate(
