@@ -28,13 +28,26 @@ class Command(BaseCommand):
             self.stdout.write(f"   Images: {count}")
             
             if sample_image:
-                tx_hash = sample_image.transaction_hash
-                arbiscan_url = f"https://arbiscan.io/tx/{tx_hash}"
-                self.stdout.write(f"   Sample Transaction: {arbiscan_url}")
+                # Show solution transaction (where the image was submitted)
+                solution_tx_hash = sample_image.transaction_hash
+                solution_arbiscan_url = f"https://arbiscan.io/tx/{solution_tx_hash}"
+                self.stdout.write(f"   Sample Solution Transaction: {solution_arbiscan_url}")
+                
+                # Show task transaction (where the model ID was specified)
+                if sample_image.task_id and sample_image.task_id != '0x0000000000000000000000000000000000000000000000000000000000000000':
+                    # The task_id is the task transaction hash (though system tries to find it via events)
+                    # For now, let's show the task_id which should link to the task
+                    self.stdout.write(f"   Task ID: {sample_image.task_id}")
+                    self.stdout.write(f"   ⚠️  To find task transaction, search for TaskSubmitted events with this task_id")
                 
                 if sample_image.prompt:
                     prompt_preview = sample_image.prompt[:60] + "..." if len(sample_image.prompt) > 60 else sample_image.prompt
                     self.stdout.write(f"   Sample Prompt: \"{prompt_preview}\"")
+                
+                if sample_image.task_submitter:
+                    self.stdout.write(f"   Task Submitter: {sample_image.task_submitter}")
+                if sample_image.solution_provider:
+                    self.stdout.write(f"   Solution Provider: {sample_image.solution_provider}")
             
             self.stdout.write("")  # Empty line for readability
         
@@ -44,4 +57,7 @@ class Command(BaseCommand):
             self.stdout.write(f"⚠️  {no_model_count} images have no model ID")
         
         total_images = ArbiusImage.objects.count()
-        self.stdout.write(f"\n📊 Total images in database: {total_images}") 
+        self.stdout.write(f"\n📊 Total images in database: {total_images}")
+        self.stdout.write(f"\n💡 Note: Solution transactions contain the generated images (CIDs)")
+        self.stdout.write(f"💡 Task transactions contain the model IDs and original prompts")
+        self.stdout.write(f"💡 To find task transactions, search Arbiscan for TaskSubmitted events with the task_id") 
