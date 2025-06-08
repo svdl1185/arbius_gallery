@@ -14,10 +14,106 @@ from .middleware import require_wallet_auth
 
 
 def get_base_queryset():
-    """Get the base queryset for images with optimizations"""
-    return ArbiusImage.objects.select_related().prefetch_related('upvotes', 'comments').filter(
+    """Get the base queryset for images with optimizations and filtering"""
+    # Define problematic models to exclude
+    EXCLUDED_MODELS = [
+        # Add model IDs that should be filtered out
+        # Example: models that consistently produce inappropriate content
+        '0x0000000000000000000000000000000000000000',  # Null/empty model
+        # Add other model IDs here as needed
+    ]
+    
+    # Define curated model categories for better filtering
+    CURATED_MODELS = {
+        'safe': [
+            # Add known safe model IDs here
+            '0xa473c70e9d7c872ac948d20546bc79db55fa64ca325a4b229aaffddb7f86aae0',  # Popular stable model
+            '0x89c39001e3b23d2095a1d59cb8c02c3eeb74d83a',  # Another popular model
+        ],
+        'artistic': [
+            # Add artistic/creative model IDs here
+        ],
+        'experimental': [
+            # Add experimental model IDs here
+        ]
+    }
+    
+    queryset = ArbiusImage.objects.select_related().prefetch_related('upvotes', 'comments').filter(
         is_accessible=True  # Only show accessible images
     )
+    
+    # Exclude problematic models
+    if EXCLUDED_MODELS:
+        queryset = queryset.exclude(model_id__in=EXCLUDED_MODELS)
+    
+    # Additional content filtering
+    queryset = queryset.exclude(
+        # Filter out images with problematic prompts
+        Q(prompt__icontains='hitler') |
+        Q(prompt__icontains='nazi') |
+        Q(prompt__icontains='violence') |
+        Q(prompt__icontains='explicit') |
+        Q(prompt__icontains='nsfw') |
+        # Add more filter terms as needed
+        Q(prompt__iregex=r'\b(porn|sex|nude|naked)\b')  # Case insensitive regex
+    )
+    
+    return queryset
+
+
+def get_available_models_with_categories():
+    """Get available models organized by categories with custom filtering"""
+    # Get all model stats
+    all_models = ArbiusImage.objects.values('model_id').annotate(
+        count=Count('id')
+    ).filter(
+        model_id__isnull=False
+    ).exclude(
+        model_id=''
+    ).exclude(
+        # Exclude the same problematic models
+        model_id__in=['0x0000000000000000000000000000000000000000']
+    ).order_by('-count')
+    
+    # Define custom model categories for better UX
+    MODEL_CATEGORIES = {
+        'Popular Models': [
+            '0xa473c70e9d7c872ac948d20546bc79db55fa64ca325a4b229aaffddb7f86aae0',
+            '0x89c39001e3b23d209092e3c6b8c02c3eeb74d83a',
+            '0x6cb3eed9fe3f32da1',
+        ],
+        'Stable Diffusion Variants': [
+            # Add stable diffusion model IDs
+        ],
+        'Experimental Models': [
+            # Add experimental model IDs
+        ]
+    }
+    
+    # Separate models into categories
+    categorized = {'Popular': [], 'Other': []}
+    popular_model_ids = MODEL_CATEGORIES.get('Popular Models', [])
+    
+    for model in all_models:
+        model_info = {
+            'model_id': model['model_id'],
+            'count': model['count'],
+            'short_name': f"{model['model_id'][:8]}...{model['model_id'][-8:]}" if len(model['model_id']) > 16 else model['model_id']
+        }
+        
+        if model['model_id'] in popular_model_ids:
+            categorized['Popular'].append(model_info)
+        else:
+            categorized['Other'].append(model_info)
+    
+    # Sort each category by count
+    for category in categorized:
+        categorized[category] = sorted(categorized[category], key=lambda x: x['count'], reverse=True)
+    
+    # Flatten for backward compatibility
+    flattened = categorized['Popular'] + categorized['Other']
+    
+    return flattened, categorized
 
 
 def index(request):
@@ -28,7 +124,7 @@ def index(request):
     selected_model = request.GET.get('model', '').strip()
     sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
     
-    # Base queryset - simplified for now
+    # Base queryset - now includes comprehensive filtering
     images = get_base_queryset()
     
     # Apply filters (existing logic)
@@ -59,10 +155,8 @@ def index(request):
         # Default fallback to most upvoted
         images = images.annotate(upvote_count_db=Count('upvotes')).order_by('-upvote_count_db', '-timestamp')
     
-    # Get available models for filter dropdown
-    available_models = ArbiusImage.objects.values('model_id').annotate(
-        count=Count('id')
-    ).filter(model_id__isnull=False).exclude(model_id='').order_by('-count')
+    # Get available models with improved categorization
+    available_models, model_categories = get_available_models_with_categories()
     
     # Pagination
     paginator = Paginator(images, 24)
@@ -76,7 +170,8 @@ def index(request):
         'selected_model': selected_model,
         'sort_by': sort_by,
         'available_models': available_models,
-        'total_images': ArbiusImage.objects.count(),
+        'model_categories': model_categories,
+        'total_images': ArbiusImage.objects.filter(is_accessible=True).count(),  # Use filtered count
         'wallet_address': getattr(request, 'wallet_address', None),
         'user_profile': getattr(request, 'user_profile', None),
     }
@@ -91,7 +186,7 @@ def search(request):
     selected_model = request.GET.get('model', '').strip()
     sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
     
-    # Base queryset - simplified for now
+    # Base queryset - now includes comprehensive filtering
     images = get_base_queryset()
     
     # Apply search filters
@@ -122,10 +217,8 @@ def search(request):
         # Default fallback to most upvoted
         images = images.annotate(upvote_count_db=Count('upvotes')).order_by('-upvote_count_db', '-timestamp')
     
-    # Get available models for filter dropdown
-    available_models = ArbiusImage.objects.values('model_id').annotate(
-        count=Count('id')
-    ).filter(model_id__isnull=False).exclude(model_id='').order_by('-count')
+    # Get available models with improved categorization
+    available_models, model_categories = get_available_models_with_categories()
     
     # Pagination
     paginator = Paginator(images, 24)
@@ -139,6 +232,7 @@ def search(request):
         'selected_model': selected_model,
         'sort_by': sort_by,
         'available_models': available_models,
+        'model_categories': model_categories,
         'wallet_address': getattr(request, 'wallet_address', None),
         'user_profile': getattr(request, 'user_profile', None),
     }

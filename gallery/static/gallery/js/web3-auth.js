@@ -8,10 +8,13 @@ class Web3Auth {
         this.isConnected = false;
         this.walletAddress = null;
         this.userProfile = null;
+        this.selectedProvider = null;
+        this.availableProviders = {};
         this.init();
     }
 
     async init() {
+        await this.detectWalletProviders();
         await this.setupEventListeners();
         
         // Check server-side state first
@@ -30,11 +33,70 @@ class Web3Auth {
         }
     }
 
+    detectWalletProviders() {
+        this.availableProviders = {};
+
+        // MetaMask
+        if (window.ethereum?.isMetaMask) {
+            this.availableProviders.metamask = {
+                name: 'MetaMask',
+                provider: window.ethereum,
+                icon: '🦊'
+            };
+        }
+
+        // Rabby
+        if (window.ethereum?.isRabby) {
+            this.availableProviders.rabby = {
+                name: 'Rabby',
+                provider: window.ethereum,
+                icon: '🐰'
+            };
+        }
+
+        // Other providers
+        if (window.ethereum && !window.ethereum.isMetaMask && !window.ethereum.isRabby) {
+            this.availableProviders.ethereum = {
+                name: 'Ethereum Wallet',
+                provider: window.ethereum,
+                icon: '⚡'
+            };
+        }
+
+        // WalletConnect or other providers
+        if (window.ethereum?.providers) {
+            window.ethereum.providers.forEach((provider, index) => {
+                if (provider.isMetaMask && !this.availableProviders.metamask) {
+                    this.availableProviders.metamask = {
+                        name: 'MetaMask',
+                        provider: provider,
+                        icon: '🦊'
+                    };
+                } else if (provider.isRabby && !this.availableProviders.rabby) {
+                    this.availableProviders.rabby = {
+                        name: 'Rabby',
+                        provider: provider,
+                        icon: '🐰'
+                    };
+                } else if (!provider.isMetaMask && !provider.isRabby) {
+                    this.availableProviders[`provider_${index}`] = {
+                        name: provider.constructor.name || `Wallet ${index + 1}`,
+                        provider: provider,
+                        icon: '💳'
+                    };
+                }
+            });
+        }
+    }
+
     checkExistingConnection() {
         // Check if wallet address exists in session/localStorage
         const savedAddress = localStorage.getItem('connectedWallet');
-        if (savedAddress) {
+        const savedProvider = localStorage.getItem('selectedWalletProvider');
+        
+        if (savedAddress && savedProvider && this.availableProviders[savedProvider]) {
             this.walletAddress = savedAddress;
+            this.selectedProvider = this.availableProviders[savedProvider].provider;
             this.isConnected = true;
         }
     }
@@ -43,7 +105,7 @@ class Web3Auth {
         // Connect wallet button
         const connectBtn = document.getElementById('connect-wallet-btn');
         if (connectBtn) {
-            connectBtn.addEventListener('click', () => this.connectWallet());
+            connectBtn.addEventListener('click', () => this.showWalletSelection());
         }
 
         // Disconnect wallet button
@@ -68,15 +130,125 @@ class Web3Auth {
         }
     }
 
-    async connectWallet() {
-        if (typeof window.ethereum === 'undefined') {
-            this.showAlert('Please install MetaMask or another Ethereum wallet to continue.', 'warning');
+    showWalletSelection() {
+        const providers = Object.keys(this.availableProviders);
+        
+        if (providers.length === 0) {
+            this.showAlert('No Ethereum wallets detected. Please install MetaMask, Rabby, or another Ethereum wallet.', 'warning');
             return;
         }
 
+        if (providers.length === 1) {
+            // Only one wallet available, connect directly
+            this.connectWithProvider(providers[0]);
+            return;
+        }
+
+        // Multiple wallets available, show selection modal
+        this.createWalletSelectionModal();
+    }
+
+    createWalletSelectionModal() {
+        // Remove existing modal if any
+        const existingModal = document.getElementById('wallet-selection-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Create modal HTML
+        const modalHTML = `
+            <div class="modal fade" id="wallet-selection-modal" tabindex="-1" style="z-index: 10000;">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content" style="background: var(--card-bg); border: 1px solid var(--card-border);">
+                        <div class="modal-header" style="border-bottom: 1px solid var(--card-border);">
+                            <h5 class="modal-title" style="color: var(--text-primary);">Choose Your Wallet</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Select which wallet you'd like to connect:</p>
+                            <div class="wallet-options">
+                                ${Object.entries(this.availableProviders).map(([key, wallet]) => `
+                                    <button class="wallet-option-btn" data-provider="${key}">
+                                        <span class="wallet-icon">${wallet.icon}</span>
+                                        <span class="wallet-name">${wallet.name}</span>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add modal styles
+        const modalStyles = `
+            <style>
+                .wallet-option-btn {
+                    width: 100%;
+                    padding: 1rem;
+                    margin-bottom: 0.5rem;
+                    background: var(--card-bg);
+                    border: 1px solid var(--card-border);
+                    border-radius: 8px;
+                    color: var(--text-primary);
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    transition: all 0.3s ease;
+                    cursor: pointer;
+                }
+                .wallet-option-btn:hover {
+                    background: var(--primary-gradient);
+                    color: white;
+                    transform: translateY(-2px);
+                }
+                .wallet-icon {
+                    font-size: 1.5rem;
+                }
+                .wallet-name {
+                    font-weight: 500;
+                }
+            </style>
+        `;
+
+        // Add to page
+        document.head.insertAdjacentHTML('beforeend', modalStyles);
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        // Add click event listeners
+        const modal = document.getElementById('wallet-selection-modal');
+        const walletOptions = modal.querySelectorAll('.wallet-option-btn');
+        
+        walletOptions.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const provider = btn.getAttribute('data-provider');
+                bootstrap.Modal.getInstance(modal).hide();
+                this.connectWithProvider(provider);
+            });
+        });
+
+        // Show modal
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+
+        // Clean up when modal is hidden
+        modal.addEventListener('hidden.bs.modal', () => {
+            modal.remove();
+        });
+    }
+
+    async connectWithProvider(providerKey) {
+        const walletInfo = this.availableProviders[providerKey];
+        if (!walletInfo) {
+            this.showAlert('Selected wallet not available', 'error');
+            return;
+        }
+
+        this.selectedProvider = walletInfo.provider;
+
         try {
             // Request account access
-            const accounts = await window.ethereum.request({
+            const accounts = await this.selectedProvider.request({
                 method: 'eth_requestAccounts'
             });
 
@@ -90,7 +262,7 @@ class Web3Auth {
             const message = `Welcome to Arbius Gallery!\n\nConnect your wallet to interact with images.\n\nWallet: ${walletAddress}\nTimestamp: ${Date.now()}`;
 
             // Request signature
-            const signature = await window.ethereum.request({
+            const signature = await this.selectedProvider.request({
                 method: 'personal_sign',
                 params: [message, walletAddress],
             });
@@ -118,8 +290,9 @@ class Web3Auth {
 
                 // Save to localStorage
                 localStorage.setItem('connectedWallet', walletAddress);
+                localStorage.setItem('selectedWalletProvider', providerKey);
 
-                this.showAlert('Wallet connected successfully!', 'success');
+                this.showAlert(`Connected with ${walletInfo.name}!`, 'success');
                 this.updateUI();
 
                 // Reload page to update all content
@@ -132,6 +305,11 @@ class Web3Auth {
             console.error('Error connecting wallet:', error);
             this.showAlert(`Failed to connect wallet: ${error.message}`, 'error');
         }
+    }
+
+    async connectWallet() {
+        // This method is kept for backward compatibility
+        this.showWalletSelection();
     }
 
     async disconnectWallet() {
@@ -147,8 +325,10 @@ class Web3Auth {
                 this.walletAddress = null;
                 this.userProfile = null;
                 this.isConnected = false;
+                this.selectedProvider = null;
 
                 localStorage.removeItem('connectedWallet');
+                localStorage.removeItem('selectedWalletProvider');
 
                 this.showAlert('Wallet disconnected', 'info');
                 this.updateUI();
