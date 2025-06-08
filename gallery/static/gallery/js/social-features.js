@@ -49,7 +49,11 @@ class SocialFeatures {
     async handleUpvote(event) {
         event.preventDefault();
         
-        if (!window.web3Auth || !window.web3Auth.isAuthenticated()) {
+        // Check authentication (web3Auth first, then Django state as fallback)
+        const isAuthenticated = (window.web3Auth && window.web3Auth.isAuthenticated()) ||
+                                (window.DJANGO_AUTH_STATE && window.DJANGO_AUTH_STATE.isAuthenticated);
+        
+        if (!isAuthenticated) {
             this.showAlert('Please connect your wallet to upvote', 'warning');
             return;
         }
@@ -137,7 +141,11 @@ class SocialFeatures {
     async handleComment(event) {
         event.preventDefault();
         
-        if (!window.web3Auth || !window.web3Auth.isAuthenticated()) {
+        // Check authentication (web3Auth first, then Django state as fallback)
+        const isAuthenticated = (window.web3Auth && window.web3Auth.isAuthenticated()) ||
+                                (window.DJANGO_AUTH_STATE && window.DJANGO_AUTH_STATE.isAuthenticated);
+        
+        if (!isAuthenticated) {
             this.showAlert('Please connect your wallet to comment', 'warning');
             return;
         }
@@ -206,7 +214,11 @@ class SocialFeatures {
     async handleProfileUpdate(event) {
         event.preventDefault();
         
-        if (!window.web3Auth || !window.web3Auth.isAuthenticated()) {
+        // Check authentication (web3Auth first, then Django state as fallback)
+        const isAuthenticated = (window.web3Auth && window.web3Auth.isAuthenticated()) ||
+                                (window.DJANGO_AUTH_STATE && window.DJANGO_AUTH_STATE.isAuthenticated);
+        
+        if (!isAuthenticated) {
             this.showAlert('Please connect your wallet to update profile', 'warning');
             return;
         }

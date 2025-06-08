@@ -114,28 +114,30 @@
                             </a>
                             
                             <!-- Social Features -->
-                            <div class="d-flex justify-content-between align-items-center mt-2 px-3 pb-3">
-                                <div class="social-stats d-flex align-items-center">
-                                    <button class="upvote-btn me-3 {% if wallet_address %}clickable-upvote{% endif %}{% if image.user_has_upvoted %} upvoted{% endif %}" 
-                                            data-image-id="{{ image.id }}" 
-                                            {% if not wallet_address %}disabled title="Connect wallet to upvote"{% endif %}>
-                                        {% if image.user_has_upvoted %}
-                                            <i class="fas fa-heart"></i>
-                                        {% else %}
-                                            <i class="fas fa-heart text-danger"></i>
-                                        {% endif %}
-                                        <span class="upvote-count">{{ image.upvote_count|default:0 }}</span>
-                                    </button>
-                                    <span class="me-3">
-                                        <i class="fas fa-comment text-info"></i>
-                                        <span class="comment-count">{{ image.comment_count|default:0 }}</span>
-                                    </span>
-                                </div>
-                                <div class="image-date">
-                                    <small class="text-muted">
-                                        <i class="bi bi-calendar3"></i>
-                                        {{ image.timestamp|date:"M d, Y" }}
-                                    </small>
+                            <div class="social-features-container">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="social-stats d-flex align-items-center">
+                                        <button class="upvote-btn me-3 {% if wallet_address %}clickable-upvote{% endif %}{% if image.user_has_upvoted %} upvoted{% endif %}" 
+                                                data-image-id="{{ image.id }}" 
+                                                {% if not wallet_address %}disabled title="Connect wallet to upvote"{% endif %}>
+                                            {% if image.user_has_upvoted %}
+                                                <i class="fas fa-heart"></i>
+                                            {% else %}
+                                                <i class="fas fa-heart text-danger"></i>
+                                            {% endif %}
+                                            <span class="upvote-count">{{ image.upvote_count|default:0 }}</span>
+                                        </button>
+                                        <span class="me-3">
+                                            <i class="fas fa-comment text-info"></i>
+                                            <span class="comment-count">{{ image.comment_count|default:0 }}</span>
+                                        </span>
+                                    </div>
+                                    <div class="image-date">
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar3"></i>
+                                            {{ image.timestamp|date:"M d, Y" }}
+                                        </small>
+                                    </div>
                                 </div>
                             </div>
                         </div>

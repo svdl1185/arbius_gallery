@@ -14,23 +14,23 @@ class Web3Auth {
     }
 
     async init() {
+        console.log('Web3Auth: Initializing...');
         await this.detectWalletProviders();
         await this.setupEventListeners();
         
-        // Check server-side state first
-        const walletInfo = document.getElementById('wallet-info');
-        const isServerConnected = walletInfo && walletInfo.style.display !== 'none' && walletInfo.textContent.trim();
+        // Check server-side authentication state from page elements
+        this.syncWithServerState();
+        console.log('Web3Auth: Server state synced, isConnected:', this.isConnected, 'walletAddress:', this.walletAddress);
         
-        if (isServerConnected) {
-            // Server says we're connected, sync client state
-            this.isConnected = true;
-            const addressText = walletInfo.textContent.trim();
-            // Don't override server state, just mark as connected
+        // If not authenticated on server, check localStorage
+        if (!this.isConnected) {
             this.checkExistingConnection();
-        } else {
-            // Check for stored wallet connection
-            this.checkExistingConnection();
+            console.log('Web3Auth: LocalStorage checked, isConnected:', this.isConnected, 'walletAddress:', this.walletAddress);
         }
+        
+        // Initial UI update
+        this.updateUI();
+        console.log('Web3Auth: Initialization complete');
     }
 
     detectWalletProviders() {
@@ -295,8 +295,8 @@ class Web3Auth {
                 this.showAlert(`Connected with ${walletInfo.name}!`, 'success');
                 this.updateUI();
 
-                // Reload page to update all content
-                setTimeout(() => window.location.reload(), 1000);
+                // Don't reload page, let JavaScript handle the state update
+                // setTimeout(() => window.location.reload(), 1000);
             } else {
                 throw new Error(data.error || 'Failed to connect wallet');
             }
@@ -333,8 +333,8 @@ class Web3Auth {
                 this.showAlert('Wallet disconnected', 'info');
                 this.updateUI();
 
-                // Reload page to update all content
-                setTimeout(() => window.location.reload(), 1000);
+                // Don't reload page, let JavaScript handle the state update
+                // setTimeout(() => window.location.reload(), 1000);
             }
 
         } catch (error) {
@@ -346,47 +346,41 @@ class Web3Auth {
         // Update connect/disconnect buttons
         const connectBtn = document.getElementById('connect-wallet-btn');
         const disconnectBtn = document.getElementById('disconnect-wallet-btn');
-        const profileLink = document.getElementById('profile-link');
-        const walletInfo = document.getElementById('wallet-info');
-
-        // Check if server already rendered connected state
-        const isServerConnected = disconnectBtn && disconnectBtn.style.display !== 'none' && disconnectBtn.offsetParent !== null;
+        const profileLink = document.getElementById('profile-link') || document.querySelector('[href*="/gallery/profile/"]');
 
         if (this.isConnected && this.walletAddress) {
-            // Only update if server hasn't already rendered the connected state
-            if (!isServerConnected) {
-                if (connectBtn) {
-                    connectBtn.style.display = 'none';
-                    connectBtn.parentElement.style.display = 'none';
-                }
-                if (disconnectBtn) {
-                    disconnectBtn.style.display = 'inline-block';
-                    disconnectBtn.parentElement.style.display = 'block';
-                }
-                if (profileLink) {
+            // Show connected state
+            if (connectBtn) {
+                connectBtn.style.display = 'none';
+                if (connectBtn.parentElement) connectBtn.parentElement.style.display = 'none';
+            }
+            if (disconnectBtn) {
+                disconnectBtn.style.display = 'inline-block';
+                if (disconnectBtn.parentElement) disconnectBtn.parentElement.style.display = 'block';
+            }
+            if (profileLink) {
+                if (!profileLink.href.includes(this.walletAddress)) {
                     profileLink.href = `/gallery/profile/${this.walletAddress}/`;
-                    profileLink.style.display = 'inline-block';
-                    profileLink.parentElement.style.display = 'block';
                 }
+                profileLink.style.display = 'inline-block';
+                if (profileLink.parentElement) profileLink.parentElement.style.display = 'block';
             }
 
             // Show authenticated features
             this.showAuthenticatedFeatures();
         } else {
-            // Only update if we're sure we're disconnected and server hasn't rendered connected state
-            if (!isServerConnected) {
-                if (connectBtn) {
-                    connectBtn.style.display = 'inline-block';
-                    connectBtn.parentElement.style.display = 'block';
-                }
-                if (disconnectBtn) {
-                    disconnectBtn.style.display = 'none';
-                    disconnectBtn.parentElement.style.display = 'none';
-                }
-                if (profileLink) {
-                    profileLink.style.display = 'none';
-                    profileLink.parentElement.style.display = 'none';
-                }
+            // Show disconnected state
+            if (connectBtn) {
+                connectBtn.style.display = 'inline-block';
+                if (connectBtn.parentElement) connectBtn.parentElement.style.display = 'block';
+            }
+            if (disconnectBtn) {
+                disconnectBtn.style.display = 'none';
+                if (disconnectBtn.parentElement) disconnectBtn.parentElement.style.display = 'none';
+            }
+            if (profileLink) {
+                profileLink.style.display = 'none';
+                if (profileLink.parentElement) profileLink.parentElement.style.display = 'none';
             }
 
             // Hide authenticated features
@@ -395,19 +389,49 @@ class Web3Auth {
     }
 
     showAuthenticatedFeatures() {
+        // Add authenticated class to body for CSS targeting
+        document.body.classList.add('authenticated');
+        
         const authElements = document.querySelectorAll('.auth-required');
-        authElements.forEach(el => el.style.display = 'block');
+        authElements.forEach(el => {
+            el.style.display = 'block';
+            // For form elements, also remove disabled state
+            if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                el.disabled = false;
+                // Also remove any "Connect wallet" titles
+                if (el.title && el.title.includes('Connect wallet')) {
+                    el.removeAttribute('title');
+                }
+            }
+        });
 
         const unauthElements = document.querySelectorAll('.unauth-only');
         unauthElements.forEach(el => el.style.display = 'none');
+        
+        console.log('Authentication state: AUTHENTICATED - Elements updated');
     }
 
     hideAuthenticatedFeatures() {
+        // Remove authenticated class from body
+        document.body.classList.remove('authenticated');
+        
         const authElements = document.querySelectorAll('.auth-required');
-        authElements.forEach(el => el.style.display = 'none');
+        authElements.forEach(el => {
+            el.style.display = 'none';
+            // For form elements, also add disabled state
+            if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                el.disabled = true;
+                // Add helpful title for buttons
+                if (el.tagName === 'BUTTON' && el.dataset.imageId) {
+                    el.title = 'Connect wallet to upvote';
+                }
+            }
+        });
 
         const unauthElements = document.querySelectorAll('.unauth-only');
         unauthElements.forEach(el => el.style.display = 'block');
+        
+        console.log('Authentication state: NOT AUTHENTICATED - Elements updated');
     }
 
     formatAddress(address) {
@@ -456,6 +480,44 @@ class Web3Auth {
 
     getUserProfile() {
         return this.userProfile;
+    }
+
+    syncWithServerState() {
+        // Use Django authentication state if available
+        if (window.DJANGO_AUTH_STATE) {
+            if (window.DJANGO_AUTH_STATE.isAuthenticated && window.DJANGO_AUTH_STATE.walletAddress) {
+                this.isConnected = true;
+                this.walletAddress = window.DJANGO_AUTH_STATE.walletAddress;
+                this.userProfile = window.DJANGO_AUTH_STATE.userProfile;
+                
+                // Save to localStorage for consistency
+                localStorage.setItem('connectedWallet', this.walletAddress);
+                return;
+            }
+        }
+        
+        // Fallback: check if server rendered authentication state
+        const disconnectBtn = document.getElementById('disconnect-wallet-btn');
+        const profileLink = document.querySelector('[href*="/gallery/profile/"]');
+        
+        // If disconnect button is visible, we're connected on server side
+        if (disconnectBtn && disconnectBtn.offsetParent !== null) {
+            this.isConnected = true;
+            
+            // Extract wallet address from profile link if available
+            if (profileLink) {
+                const profileUrl = profileLink.getAttribute('href');
+                const addressMatch = profileUrl.match(/\/gallery\/profile\/([^\/]+)\//);
+                if (addressMatch) {
+                    this.walletAddress = addressMatch[1];
+                }
+            }
+            
+            // Save to localStorage for consistency
+            if (this.walletAddress) {
+                localStorage.setItem('connectedWallet', this.walletAddress);
+            }
+        }
     }
 }
 

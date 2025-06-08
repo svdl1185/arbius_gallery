@@ -198,6 +198,15 @@
             display: block;
         }
         
+        /* When JavaScript confirms authentication, show authenticated elements */
+        body.authenticated .auth-required {
+            display: block !important;
+        }
+        
+        body.authenticated .unauth-only {
+            display: none !important;
+        }
+        
         .hero-section {
             padding: 3rem 0;
             text-align: center;
@@ -268,6 +277,9 @@
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
             color: inherit;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
         }
         
         .image-card:hover {
@@ -280,11 +292,20 @@
             color: inherit;
         }
         
+        .image-card .image-link {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            text-decoration: none;
+            color: inherit;
+        }
+        
         .image-wrapper {
             position: relative;
             aspect-ratio: 1;
             overflow: hidden;
             background: linear-gradient(45deg, #333, #555);
+            flex-shrink: 0;
         }
         
         .image-wrapper img {
@@ -323,6 +344,16 @@
         
         .image-info {
             padding: 1.5rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 80px;
+        }
+        
+        .image-card .social-features-container {
+            margin-top: auto;
+            padding: 0 1.5rem 1.5rem;
         }
         
         .image-cid {
@@ -468,7 +499,7 @@
         }
     </style>
 </head>
-<body>
+<body{% if wallet_address %} class="authenticated"{% endif %}>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
         <div class="container">
@@ -559,6 +590,16 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Pass Django authentication state to JavaScript -->
+    <script>
+        // Global authentication state from Django
+        window.DJANGO_AUTH_STATE = {
+            isAuthenticated: {% if wallet_address %}true{% else %}false{% endif %},
+            walletAddress: {% if wallet_address %}'{{ wallet_address }}'{% else %}null{% endif %},
+            userProfile: {% if user_profile %}{{ user_profile|safe }}{% else %}null{% endif %}
+        };
+    </script>
     
     <!-- Web3 JavaScript -->
     {% load static %}
