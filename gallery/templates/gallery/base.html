@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>Gallery - Unrestricted Permissionless Image Gallery</title>
     
     <!-- Google tag (gtag.js) -->
@@ -20,6 +21,9 @@
     
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <!-- Font Awesome for additional icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -65,6 +69,83 @@
         .nav-link:hover {
             color: #ffffff !important;
             transform: translateY(-1px);
+        }
+        
+        /* Web3 Wallet Styles */
+        .wallet-connect-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border: none !important;
+            color: white !important;
+            font-weight: 600 !important;
+            padding: 8px 16px !important;
+            border-radius: 25px !important;
+            transition: all 0.3s ease !important;
+            text-decoration: none !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+        }
+        
+        .wallet-connect-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
+            color: white !important;
+        }
+        
+        .wallet-info {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        .wallet-address {
+            font-family: 'Monaco', monospace;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 12px;
+            margin-right: 8px;
+        }
+        
+        /* Social Feature Styles */
+        .upvote-btn {
+            background: none;
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            padding: 8px 12px;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upvote-btn:hover, .upvote-btn.upvoted {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            border-color: #ff6b6b;
+            color: white;
+        }
+        
+        .comment-form {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .comment {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .auth-required {
+            display: none;
+        }
+        
+        .unauth-only {
+            display: block;
         }
         
         .hero-section {
@@ -361,7 +442,23 @@
                             <i class="bi bi-info-circle"></i> Info
                         </a>
                     </li>
-                    <li class="nav-item ms-2">
+                    
+                    <!-- Web3 Authentication -->
+                    <li class="nav-item me-2">
+                        <span id="wallet-info" class="wallet-info">
+                            <!-- Populated by JavaScript -->
+                        </span>
+                    </li>
+                    <li class="nav-item me-2">
+                        <button id="connect-wallet-btn" class="btn wallet-connect-btn">
+                            <i class="fas fa-wallet"></i> Connect Wallet
+                        </button>
+                        <button id="disconnect-wallet-btn" class="btn btn-outline-secondary btn-sm" style="display: none;">
+                            <i class="fas fa-sign-out-alt"></i> Disconnect
+                        </button>
+                    </li>
+                    
+                    <li class="nav-item">
                         <a class="telegram-btn" href="https://t.me/+jILwOBI70xsxYTM9" target="_blank">
                             <i class="bi bi-telegram"></i> Try for free
                         </a>
@@ -379,6 +476,11 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Web3 JavaScript -->
+    {% load static %}
+    <script src="{% static 'gallery/js/web3-auth.js' %}"></script>
+    <script src="{% static 'gallery/js/social-features.js' %}"></script>
     
     {% block extra_js %}
     {% endblock %}

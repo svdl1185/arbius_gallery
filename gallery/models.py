@@ -91,6 +91,106 @@ class ArbiusImage(models.Model):
             
         return clean_text
 
+    @property
+    def upvote_count(self):
+        """Return the number of upvotes for this image"""
+        return self.upvotes.count()
+    
+    @property 
+    def comment_count(self):
+        """Return the number of comments for this image"""
+        return self.comments.count()
+    
+    def has_upvoted(self, wallet_address):
+        """Check if a wallet address has upvoted this image"""
+        if not wallet_address:
+            return False
+        return self.upvotes.filter(wallet_address__iexact=wallet_address).exists()
+
+
+class UserProfile(models.Model):
+    """User profile linked to wallet address"""
+    wallet_address = models.CharField(max_length=42, unique=True, db_index=True)
+    display_name = models.CharField(max_length=50, blank=True, null=True)
+    bio = models.TextField(max_length=500, blank=True, null=True)
+    avatar_url = models.URLField(blank=True, null=True)
+    website = models.URLField(blank=True, null=True)
+    twitter_handle = models.CharField(max_length=50, blank=True, null=True)
+    
+    # Stats (will be updated via signals or periodic tasks)
+    total_images_created = models.IntegerField(default=0)
+    total_upvotes_received = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['wallet_address']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return self.display_name or f"User {self.wallet_address[:10]}..."
+    
+    @property
+    def short_address(self):
+        """Return a shortened version of the wallet address"""
+        return f"{self.wallet_address[:6]}...{self.wallet_address[-4:]}"
+    
+    def update_stats(self):
+        """Update user statistics"""
+        self.total_images_created = ArbiusImage.objects.filter(
+            task_submitter__iexact=self.wallet_address
+        ).count()
+        
+        self.total_upvotes_received = ImageUpvote.objects.filter(
+            image__task_submitter__iexact=self.wallet_address
+        ).count()
+        
+        self.save()
+
+
+class ImageUpvote(models.Model):
+    """Track upvotes on images"""
+    image = models.ForeignKey(ArbiusImage, on_delete=models.CASCADE, related_name='upvotes')
+    wallet_address = models.CharField(max_length=42, db_index=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        unique_together = ['image', 'wallet_address']  # Prevent duplicate votes
+        indexes = [
+            models.Index(fields=['wallet_address']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"Upvote by {self.wallet_address[:10]}... on {self.image.short_cid}"
+
+
+class ImageComment(models.Model):
+    """Comments on images"""
+    image = models.ForeignKey(ArbiusImage, on_delete=models.CASCADE, related_name='comments')
+    wallet_address = models.CharField(max_length=42, db_index=True)
+    content = models.TextField(max_length=1000)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['wallet_address']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"Comment by {self.wallet_address[:10]}... on {self.image.short_cid}"
+    
+    @property
+    def short_content(self):
+        """Return a shortened version of the comment content"""
+        return self.content[:100] + "..." if len(self.content) > 100 else self.content
+
 
 class ScanStatus(models.Model):
     """Model to track blockchain scanning progress"""

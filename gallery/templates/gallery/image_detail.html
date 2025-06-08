@@ -21,6 +21,49 @@
                         </div>
                     {% endif %}
                 </div>
+                
+                <!-- Social Actions -->
+                <div class="p-3 border-top">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="social-actions">
+                            <!-- Upvote Button -->
+                            <button class="upvote-btn auth-required {% if has_upvoted %}upvoted{% endif %}" 
+                                    data-image-id="{{ image.id }}">
+                                {% if has_upvoted %}
+                                    <i class="fas fa-heart"></i>
+                                {% else %}
+                                    <i class="far fa-heart"></i>
+                                {% endif %}
+                                <span class="upvote-count">{{ image.upvote_count }}</span>
+                            </button>
+                            
+                            <!-- Comment Count -->
+                            <span class="ms-3 text-muted">
+                                <i class="fas fa-comment"></i>
+                                <span class="comment-count">{{ image.comment_count }}</span>
+                            </span>
+                        </div>
+                        
+                        <!-- Creator Link -->
+                        {% if image.task_submitter %}
+                            <div class="creator-info">
+                                <small class="text-muted">Created by</small>
+                                <a href="{% url 'gallery:user_profile' image.task_submitter %}" 
+                                   class="creator-link ms-1">
+                                    {{ image.task_submitter|truncatechars:12 }}
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Connect Wallet Message -->
+                    <div class="unauth-only mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            Connect your wallet to upvote and comment on images
+                        </small>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -57,6 +100,61 @@
                     <a href="{% url 'gallery:index' %}" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left"></i> Back to Gallery
                     </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Comments Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="stats-card" style="padding: 2rem;">
+                <h4 class="mb-4">
+                    <i class="fas fa-comments"></i> Comments
+                </h4>
+                
+                <!-- Comment Form -->
+                <div class="auth-required">
+                    <form class="comment-form" data-image-id="{{ image.id }}">
+                        <div class="mb-3">
+                            <textarea name="content" class="form-control" 
+                                      placeholder="Share your thoughts about this artwork..." 
+                                      rows="3" maxlength="1000" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Post Comment
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Connect Wallet Message -->
+                <div class="unauth-only text-center py-4">
+                    <i class="fas fa-lock" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                    <h5>Connect Your Wallet</h5>
+                    <p class="text-muted">Connect your Web3 wallet to join the conversation and comment on this artwork.</p>
+                </div>
+                
+                <!-- Comments List -->
+                <div class="comments-list mt-4" id="comments-list-{{ image.id }}">
+                    {% for comment in comments %}
+                        <div class="comment mb-3 p-3 border rounded">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <a href="{% url 'gallery:user_profile' comment.wallet_address %}" class="creator-link">
+                                        <strong>{{ comment.wallet_address|truncatechars:12 }}</strong>
+                                    </a>
+                                    <small class="text-muted ms-2">{{ comment.created_at|timesince }} ago</small>
+                                </div>
+                            </div>
+                            <p class="mt-2 mb-0">{{ comment.content }}</p>
+                        </div>
+                    {% empty %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-comment-dots" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                            <h5>No comments yet</h5>
+                            <p class="text-muted">Be the first to share your thoughts about this artwork!</p>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -218,6 +316,82 @@
     border-top: 1px solid var(--card-border);
     margin-top: 2rem;
     padding-top: 2rem;
+}
+
+/* Social Feature Styles */
+.creator-link {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.creator-link:hover {
+    color: #764ba2;
+    text-decoration: underline;
+}
+
+.social-actions {
+    display: flex;
+    align-items: center;
+}
+
+.upvote-btn {
+    background: none;
+    border: 1px solid var(--card-border);
+    color: var(--text-muted);
+    padding: 8px 12px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.upvote-btn:hover, .upvote-btn.upvoted {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    border-color: #ff6b6b;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.upvote-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.comment-form {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.comment-form textarea {
+    background: transparent;
+    border-color: var(--card-border);
+    color: white;
+    resize: vertical;
+}
+
+.comment-form textarea:focus {
+    background: transparent;
+    border-color: #667eea;
+    color: white;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.comment {
+    background: var(--card-bg);
+    border-color: var(--card-border) !important;
+    transition: all 0.3s ease;
+}
+
+.comment:hover {
+    border-color: rgba(102, 126, 234, 0.3) !important;
+    transform: translateY(-1px);
 }
 </style>
 {% endblock %} 

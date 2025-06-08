@@ -1,329 +1,435 @@
 from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods, require_POST
+from django.db.models import Q, Count, Case, When, IntegerField
+from django.db.models.functions import Length
 from django.core.paginator import Paginator
-from django.db.models import Q, Count
-from django.db.models.functions import Length, TruncDate
 from django.utils import timezone
-from datetime import timedelta
-from .models import ArbiusImage, ScanStatus
+from datetime import datetime, timedelta
 import json
+
+from .models import ArbiusImage, UserProfile, ImageUpvote, ImageComment
+from .middleware import require_wallet_auth
 
 
 def get_base_queryset():
-    """Get the base queryset with all filtering applied"""
-    return ArbiusImage.objects.annotate(
-        prompt_length=Length('prompt')
-    ).exclude(
-        prompt__startswith="<|begin_of_text|>"
-    ).exclude(
-        prompt__startswith="<|end_of_text|>"
-    ).exclude(
-        prompt__startswith='{"System prompt"'
-    ).exclude(
-        prompt__startswith='{"MessageHistory"'
-    ).exclude(
-        prompt_length__gt=5000  # Exclude extremely long prompts (likely text outputs)
-    ).exclude(
-        prompt__icontains='hitler'  # Filter out Hitler-related content
-    ).filter(
+    """Get the base queryset for images with optimizations"""
+    return ArbiusImage.objects.select_related().prefetch_related('upvotes', 'comments').filter(
         is_accessible=True  # Only show accessible images
     )
 
 
-def get_image_models_queryset():
-    """Get queryset that only includes valid image generation models"""
-    return get_base_queryset().exclude(
-        model_id__isnull=True
-    ).exclude(
-        model_id=''
-    ).exclude(
-        model_id__startswith='0x000000'  # Filter out null/empty model IDs
-    ).exclude(
-        model_id='0x89c39001e3b23d2092bd998b62f07b523d23deb55e1627048b4ed47a4a38d5cc'  # Filter out text model (2564 images)
-    ).exclude(
-        model_id='0x6cb3eed9fe3f32da1910825b98bd49d537912c99410e7a35f30add137fd3b64c'  # Filter out text model (36 images)
-    )
-
-
 def index(request):
-    """Gallery index view with automatic pagination and model filtering"""
-    # Get base queryset
+    """Main gallery view with Web3 integration"""
+    # Get filter parameters
+    search_query = request.GET.get('q', '').strip()
+    selected_task_submitter = request.GET.get('task_submitter', '').strip()
+    selected_model = request.GET.get('model', '').strip()
+    sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
+    
+    # Base queryset - simplified for now
     images = get_base_queryset()
     
-    # Apply model filter if provided
-    model_filter = request.GET.get('model', '')
-    if model_filter:
-        images = images.filter(model_id=model_filter)
+    # Apply filters (existing logic)
+    if search_query:
+        images = images.filter(
+            Q(prompt__icontains=search_query) |
+            Q(cid__icontains=search_query) |
+            Q(transaction_hash__icontains=search_query) |
+            Q(task_id__icontains=search_query)
+        )
     
-    # Apply task submitter filter if provided
-    task_submitter_filter = request.GET.get('task_submitter', '')
-    if task_submitter_filter:
-        images = images.filter(task_submitter__iexact=task_submitter_filter)
+    if selected_task_submitter:
+        images = images.filter(task_submitter__iexact=selected_task_submitter)
     
-    # Order by timestamp
-    images = images.order_by('-timestamp')
+    if selected_model:
+        images = images.filter(model_id=selected_model)
+    
+    # Apply sorting
+    if sort_by == 'upvotes':
+        images = images.annotate(upvote_count_db=Count('upvotes')).order_by('-upvote_count_db', '-timestamp')
+    elif sort_by == 'comments':
+        images = images.annotate(comment_count_db=Count('comments')).order_by('-comment_count_db', '-timestamp')
+    elif sort_by == 'newest':
+        images = images.order_by('-timestamp')
+    elif sort_by == 'oldest':
+        images = images.order_by('timestamp')
+    else:
+        # Default fallback to most upvoted
+        images = images.annotate(upvote_count_db=Count('upvotes')).order_by('-upvote_count_db', '-timestamp')
     
     # Get available models for filter dropdown
-    available_models = get_image_models_queryset().values('model_id').annotate(
+    available_models = ArbiusImage.objects.values('model_id').annotate(
         count=Count('id')
-    ).order_by('-count')[:20]  # Top 20 models by usage
-    
-    # Calculate stats for display
-    total_images = images.count()
-    
-    # Count new images in the last 24 hours
-    twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
-    new_images_24h = images.filter(timestamp__gte=twenty_four_hours_ago).count()
-    
-    # Count new images in the last week
-    one_week_ago = timezone.now() - timedelta(weeks=1)
-    images_this_week = images.filter(timestamp__gte=one_week_ago).count()
+    ).filter(model_id__isnull=False).exclude(model_id='').order_by('-count')
     
     # Pagination
-    paginator = Paginator(images, 24)  # Show 24 images per page (6 rows × 4 columns)
-    page_number = request.GET.get('page')
+    paginator = Paginator(images, 24)
+    page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     
     context = {
-        'images': page_obj,
         'page_obj': page_obj,
-        'is_paginated': page_obj.has_other_pages(),
-        'total_images': total_images,
-        'new_images_24h': new_images_24h,
-        'images_this_week': images_this_week,
+        'search_query': search_query,
+        'selected_task_submitter': selected_task_submitter,
+        'selected_model': selected_model,
+        'sort_by': sort_by,
         'available_models': available_models,
-        'selected_model': model_filter,
-        'selected_task_submitter': task_submitter_filter,
+        'total_images': ArbiusImage.objects.count(),
+        'wallet_address': getattr(request, 'wallet_address', None),
+        'user_profile': getattr(request, 'user_profile', None),
     }
-    
     return render(request, 'gallery/index.html', context)
 
 
 def search(request):
-    """Search view for finding images by prompt keywords with model filtering"""
-    query = request.GET.get('q', '').strip()
-    model_filter = request.GET.get('model', '')
-    task_submitter_filter = request.GET.get('task_submitter', '')
+    """Search view with Web3 integration"""
+    # Get search parameters
+    search_query = request.GET.get('q', '').strip()
+    selected_task_submitter = request.GET.get('task_submitter', '').strip()
+    selected_model = request.GET.get('model', '').strip()
+    sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
     
-    # Get base queryset
+    # Base queryset - simplified for now
     images = get_base_queryset()
     
-    if query:
-        # Split the query into individual words and create Q objects for each
-        query_words = query.split()
-        q_objects = Q()
-        
-        # Create an AND condition for each word
-        for word in query_words:
-            q_objects &= Q(prompt__icontains=word)
-        
-        # Apply search filter
-        images = images.filter(q_objects)
+    # Apply search filters
+    if search_query:
+        images = images.filter(
+            Q(prompt__icontains=search_query) |
+            Q(cid__icontains=search_query) |
+            Q(transaction_hash__icontains=search_query) |
+            Q(task_id__icontains=search_query)
+        )
     
-    # Apply model filter if provided
-    if model_filter:
-        images = images.filter(model_id=model_filter)
+    if selected_task_submitter:
+        images = images.filter(task_submitter__iexact=selected_task_submitter)
     
-    # Apply task submitter filter if provided
-    if task_submitter_filter:
-        images = images.filter(task_submitter__iexact=task_submitter_filter)
+    if selected_model:
+        images = images.filter(model_id=selected_model)
     
-    # Order by timestamp
-    images = images.order_by('-timestamp')
+    # Apply sorting
+    if sort_by == 'upvotes':
+        images = images.annotate(upvote_count_db=Count('upvotes')).order_by('-upvote_count_db', '-timestamp')
+    elif sort_by == 'comments':
+        images = images.annotate(comment_count_db=Count('comments')).order_by('-comment_count_db', '-timestamp')
+    elif sort_by == 'newest':
+        images = images.order_by('-timestamp')
+    elif sort_by == 'oldest':
+        images = images.order_by('timestamp')
+    else:
+        # Default fallback to most upvoted
+        images = images.annotate(upvote_count_db=Count('upvotes')).order_by('-upvote_count_db', '-timestamp')
     
     # Get available models for filter dropdown
-    available_models = get_image_models_queryset().values('model_id').annotate(
+    available_models = ArbiusImage.objects.values('model_id').annotate(
         count=Count('id')
-    ).order_by('-count')[:20]  # Top 20 models by usage
-    
-    # Calculate stats for display (use same filtering)
-    total_images = get_base_queryset().count()
-    
-    # Count new images in the last 24 hours
-    twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
-    new_images_24h = get_base_queryset().filter(
-        timestamp__gte=twenty_four_hours_ago
-    ).count()
-    
-    # Count new images in the last week
-    one_week_ago = timezone.now() - timedelta(weeks=1)
-    images_this_week = get_base_queryset().filter(
-        timestamp__gte=one_week_ago
-    ).count()
+    ).filter(model_id__isnull=False).exclude(model_id='').order_by('-count')
     
     # Pagination
-    paginator = Paginator(images, 24)  # Show 24 images per page (6 rows × 4 columns)
-    page_number = request.GET.get('page')
+    paginator = Paginator(images, 24)
+    page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     
     context = {
-        'images': page_obj,
         'page_obj': page_obj,
-        'is_paginated': page_obj.has_other_pages(),
-        'total_images': total_images,
-        'new_images_24h': new_images_24h,
-        'images_this_week': images_this_week,
-        'query': query,
+        'search_query': search_query,
+        'selected_task_submitter': selected_task_submitter,
+        'selected_model': selected_model,
+        'sort_by': sort_by,
         'available_models': available_models,
-        'selected_model': model_filter,
-        'selected_task_submitter': task_submitter_filter,
+        'wallet_address': getattr(request, 'wallet_address', None),
+        'user_profile': getattr(request, 'user_profile', None),
     }
-    
-    return render(request, 'gallery/index.html', context)
+    return render(request, 'gallery/search.html', context)
 
 
 def image_detail(request, image_id):
-    """Individual image detail view with related images by same user and same model"""
+    """Individual image detail view with social features"""
     image = get_object_or_404(ArbiusImage, id=image_id)
     
-    # Get images by the same user (task submitter)
+    # Get related images
     same_user_images = None
     if image.task_submitter:
         same_user_images = get_base_queryset().filter(
             task_submitter__iexact=image.task_submitter
         ).exclude(id=image.id).order_by('-timestamp')[:6]
     
-    # Get images from the same model
     same_model_images = None
     if image.model_id:
         same_model_images = get_base_queryset().filter(
             model_id=image.model_id
         ).exclude(id=image.id).order_by('-timestamp')[:6]
     
+    # Get comments
+    comments = image.comments.all()[:20]  # Latest 20 comments
+    
+    # Check if current user has upvoted
+    has_upvoted = False
+    if hasattr(request, 'wallet_address') and request.wallet_address:
+        has_upvoted = image.has_upvoted(request.wallet_address)
+    
     context = {
         'image': image,
         'same_user_images': same_user_images,
         'same_model_images': same_model_images,
+        'comments': comments,
+        'has_upvoted': has_upvoted,
+        'wallet_address': getattr(request, 'wallet_address', None),
+        'user_profile': getattr(request, 'user_profile', None),
     }
     
     return render(request, 'gallery/image_detail.html', context)
 
 
 def info(request):
-    """Information page about the Arbius gallery and process"""
-    # Filter out text outputs for consistent stats
-    valid_images = ArbiusImage.objects.annotate(
-        prompt_length=Length('prompt')
-    ).exclude(
-        prompt__startswith="<|begin_of_text|>"
-    ).exclude(
-        prompt__startswith="<|end_of_text|>"
-    ).exclude(
-        prompt__startswith='{"System prompt"'
-    ).exclude(
-        prompt__startswith='{"MessageHistory"'
-    ).exclude(
-        prompt_length__gt=5000
-    ).exclude(
-        prompt__icontains='hitler'  # Filter out Hitler-related content
-    ).filter(is_accessible=True)
+    """Info page with enhanced statistics"""
+    total_images = ArbiusImage.objects.count()
+    total_accessible = ArbiusImage.objects.filter(is_accessible=True).count()
     
-    # Calculate comprehensive stats
-    total_images = valid_images.count()
-    images_with_prompts = valid_images.filter(prompt__isnull=False).exclude(prompt='').count()
+    # Recent activity
+    last_24h = timezone.now() - timedelta(hours=24)
+    recent_images = ArbiusImage.objects.filter(discovered_at__gte=last_24h).count()
     
-    # Images generated in the last 24 hours (replacing daily average)
-    twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
-    new_images_24h = valid_images.filter(timestamp__gte=twenty_four_hours_ago).count()
+    # Top creators
+    top_creators = ArbiusImage.objects.filter(
+        task_submitter__isnull=False
+    ).values('task_submitter').annotate(
+        image_count=Count('id')
+    ).order_by('-image_count')[:10]
     
-    # Images generated this week
-    one_week_ago = timezone.now() - timedelta(weeks=1)
-    images_this_week = valid_images.filter(timestamp__gte=one_week_ago).count()
-    
-    # Number of unique users (task submitters)
-    unique_users = valid_images.exclude(
-        task_submitter__isnull=True
-    ).exclude(
-        task_submitter=''
-    ).values('task_submitter').distinct().count()
-    
-    # Number of different models
-    unique_models = get_image_models_queryset().values('model_id').distinct().count()
-    
-    # New users this week
-    new_users_this_week = valid_images.filter(
-        timestamp__gte=one_week_ago
-    ).exclude(
-        task_submitter__isnull=True
-    ).exclude(
-        task_submitter=''
-    ).values('task_submitter').distinct().count()
-    
-    # Most used model overall
-    most_used_model = get_image_models_queryset().values('model_id').annotate(
+    # Model statistics
+    model_stats = ArbiusImage.objects.filter(
+        model_id__isnull=False
+    ).exclude(model_id='').values('model_id').annotate(
         count=Count('id')
-    ).order_by('-count').first()
+    ).order_by('-count')[:10]
     
-    # Most used model this week
-    most_used_model_week = get_image_models_queryset().filter(
-        timestamp__gte=one_week_ago
-    ).values('model_id').annotate(
-        count=Count('id')
-    ).order_by('-count').first()
-    
-    # Get data for cumulative chart (using date formatting instead of DATE_TRUNC for SQLite)
-    cumulative_data = []
-    if total_images > 0:
-        # Group by month using Python date formatting since SQLite doesn't support DATE_TRUNC
-        all_images = valid_images.order_by('timestamp')
-        monthly_counts = {}
-        
-        for image in all_images:
-            month_key = image.timestamp.strftime('%Y-%m')
-            monthly_counts[month_key] = monthly_counts.get(month_key, 0) + 1
-        
-        cumulative_total = 0
-        for month in sorted(monthly_counts.keys()):
-            cumulative_total += monthly_counts[month]
-            cumulative_data.append({
-                'date': month,
-                'total': cumulative_total
-            })
-    
-    # Get data for daily chart (last 25 days) - using Python grouping instead of database functions
-    twenty_five_days_ago = timezone.now() - timedelta(days=25)
-    recent_images = valid_images.filter(
-        timestamp__gte=twenty_five_days_ago
-    ).order_by('timestamp')
-    
-    # Group by date using Python
-    daily_counts = {}
-    for image in recent_images:
-        date_key = image.timestamp.date()
-        daily_counts[date_key] = daily_counts.get(date_key, 0) + 1
-    
-    # Convert to format suitable for Chart.js
-    daily_chart_data = []
-    for i in range(25):
-        date = (timezone.now() - timedelta(days=24-i)).date()
-        count = daily_counts.get(date, 0)
-        daily_chart_data.append({
-            'date': date.strftime('%m/%d'),
-            'count': count
-        })
-    
-    # Get scan status info
-    scan_status = ScanStatus.objects.first()
-    last_scan_time = scan_status.last_scan_time if scan_status else None
-    last_scanned_block = scan_status.last_scanned_block if scan_status else None
-    
-    # Get recent images for preview, filtering out invalid entries
-    recent_images = valid_images.order_by('-timestamp')[:12]
+    # Social statistics
+    total_upvotes = ImageUpvote.objects.count()
+    total_comments = ImageComment.objects.count()
+    total_profiles = UserProfile.objects.count()
     
     context = {
         'total_images': total_images,
-        'images_with_prompts': images_with_prompts,
-        'new_images_24h': new_images_24h,  # Replaced daily_average
-        'images_this_week': images_this_week,
-        'unique_users': unique_users,
-        'unique_models': unique_models,
-        'new_users_this_week': new_users_this_week,
-        'most_used_model': most_used_model,
-        'most_used_model_week': most_used_model_week,
-        'last_scan_time': last_scan_time,
-        'last_scanned_block': last_scanned_block,
+        'total_accessible': total_accessible,
         'recent_images': recent_images,
-        'cumulative_chart_data': json.dumps(cumulative_data),
-        'daily_chart_data': json.dumps(daily_chart_data),
+        'top_creators': top_creators,
+        'model_stats': model_stats,
+        'total_upvotes': total_upvotes,
+        'total_comments': total_comments,
+        'total_profiles': total_profiles,
+        'wallet_address': getattr(request, 'wallet_address', None),
+        'user_profile': getattr(request, 'user_profile', None),
     }
-    
     return render(request, 'gallery/info.html', context)
+
+
+# === Web3 Authentication Views ===
+
+@csrf_exempt
+@require_POST
+def connect_wallet(request):
+    """Handle wallet connection"""
+    try:
+        data = json.loads(request.body)
+        wallet_address = data.get('wallet_address', '').lower()
+        signature = data.get('signature', '')
+        message = data.get('message', '')
+        
+        if not wallet_address or not signature:
+            return JsonResponse({'error': 'Missing wallet address or signature'}, status=400)
+        
+        # TODO: Verify signature against message (implement signature verification)
+        # For now, we'll trust the frontend verification
+        
+        # Store wallet address in session
+        request.session['wallet_address'] = wallet_address
+        
+        # Get or create user profile
+        profile, created = UserProfile.objects.get_or_create(
+            wallet_address=wallet_address,
+            defaults={'display_name': f"User {wallet_address[:8]}..."}
+        )
+        
+        if created:
+            profile.update_stats()
+        
+        return JsonResponse({
+            'success': True,
+            'wallet_address': wallet_address,
+            'profile': {
+                'display_name': profile.display_name,
+                'total_images_created': profile.total_images_created,
+                'total_upvotes_received': profile.total_upvotes_received,
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_POST
+def disconnect_wallet(request):
+    """Handle wallet disconnection"""
+    request.session.pop('wallet_address', None)
+    return JsonResponse({'success': True})
+
+
+# === Social Feature Views ===
+
+@csrf_exempt
+@require_POST
+@require_wallet_auth
+def toggle_upvote(request, image_id):
+    """Toggle upvote on an image"""
+    try:
+        image = get_object_or_404(ArbiusImage, id=image_id)
+        wallet_address = request.wallet_address
+        
+        upvote, created = ImageUpvote.objects.get_or_create(
+            image=image,
+            wallet_address=wallet_address
+        )
+        
+        if not created:
+            # Remove upvote if it already exists
+            upvote.delete()
+            upvoted = False
+        else:
+            upvoted = True
+        
+        # Update creator's stats if they have a profile
+        if image.task_submitter:
+            try:
+                creator_profile = UserProfile.objects.get(wallet_address=image.task_submitter)
+                creator_profile.update_stats()
+            except UserProfile.DoesNotExist:
+                pass
+        
+        return JsonResponse({
+            'success': True,
+            'upvoted': upvoted,
+            'upvote_count': image.upvote_count
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_POST
+@require_wallet_auth
+def add_comment(request, image_id):
+    """Add a comment to an image"""
+    try:
+        data = json.loads(request.body)
+        content = data.get('content', '').strip()
+        
+        if not content or len(content) > 1000:
+            return JsonResponse({'error': 'Comment must be between 1 and 1000 characters'}, status=400)
+        
+        image = get_object_or_404(ArbiusImage, id=image_id)
+        
+        comment = ImageComment.objects.create(
+            image=image,
+            wallet_address=request.wallet_address,
+            content=content
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'comment': {
+                'id': comment.id,
+                'content': comment.content,
+                'wallet_address': comment.wallet_address,
+                'created_at': comment.created_at.isoformat(),
+            },
+            'comment_count': image.comment_count
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_wallet_auth
+def user_profile(request, wallet_address):
+    """Display user profile page"""
+    profile = get_object_or_404(UserProfile, wallet_address__iexact=wallet_address)
+    
+    # Get user's images - simplified for now
+    user_images = get_base_queryset().filter(
+        task_submitter__iexact=wallet_address
+    ).order_by('-timestamp')
+    
+    # Pagination
+    paginator = Paginator(user_images, 24)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    
+    # Check if viewing own profile
+    is_own_profile = (hasattr(request, 'wallet_address') and 
+                     request.wallet_address and 
+                     request.wallet_address.lower() == wallet_address.lower())
+    
+    context = {
+        'profile': profile,
+        'page_obj': page_obj,
+        'is_own_profile': is_own_profile,
+        'wallet_address': getattr(request, 'wallet_address', None),
+        'user_profile': getattr(request, 'user_profile', None),
+    }
+    return render(request, 'gallery/user_profile.html', context)
+
+
+@csrf_exempt
+@require_POST
+@require_wallet_auth
+def update_profile(request):
+    """Update user profile"""
+    try:
+        data = json.loads(request.body)
+        profile = request.user_profile
+        
+        # Update allowed fields
+        if 'display_name' in data:
+            display_name = data['display_name'].strip()
+            if len(display_name) <= 50:
+                profile.display_name = display_name
+        
+        if 'bio' in data:
+            bio = data['bio'].strip()
+            if len(bio) <= 500:
+                profile.bio = bio
+        
+        if 'website' in data:
+            profile.website = data['website'].strip()
+        
+        if 'twitter_handle' in data:
+            twitter = data['twitter_handle'].strip()
+            if twitter.startswith('@'):
+                twitter = twitter[1:]
+            if len(twitter) <= 50:
+                profile.twitter_handle = twitter
+        
+        profile.save()
+        
+        return JsonResponse({
+            'success': True,
+            'profile': {
+                'display_name': profile.display_name,
+                'bio': profile.bio,
+                'website': profile.website,
+                'twitter_handle': profile.twitter_handle,
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

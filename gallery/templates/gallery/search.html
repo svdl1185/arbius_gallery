@@ -2,12 +2,18 @@
 
 {% block content %}
 <div class="container">
-    <!-- Hero Section -->
+    <!-- Search Results Header -->
     <div class="hero-section">
-        <h1 class="hero-title">Unrestricted Permissionless Image Gallery</h1>
-        <p class="hero-subtitle">
-            Each image represents a decentralized AI computation result stored permanently on the blockchain.
-        </p>
+        <h1 class="hero-title">Search Results</h1>
+        {% if search_query or selected_model or selected_task_submitter %}
+            <p class="hero-subtitle">
+                Showing results for your search criteria
+            </p>
+        {% else %}
+            <p class="hero-subtitle">
+                Use the filters below to search through the gallery
+            </p>
+        {% endif %}
     </div>
 
     <!-- Search Section -->
@@ -24,7 +30,7 @@
                                        id="prompt-filter"
                                        class="form-control prompt-filter" 
                                        placeholder="Enter keywords..." 
-                                       value="{{ request.GET.q }}"
+                                       value="{{ search_query }}"
                                        autocomplete="off">
                             </div>
                         </div>
@@ -66,48 +72,46 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Hidden fields to preserve other filters -->
-                    {% if request.GET.q %}
-                        <input type="hidden" name="q" value="{{ request.GET.q }}">
-                    {% endif %}
-                    {% if selected_model %}
-                        <input type="hidden" name="model" value="{{ selected_model }}">
-                    {% endif %}
-                    {% if selected_task_submitter %}
-                        <input type="hidden" name="task_submitter" value="{{ selected_task_submitter }}">
-                    {% endif %}
                 </form>
                 
-                {% if selected_model or request.GET.q or selected_task_submitter %}
+                {% if selected_model or search_query or selected_task_submitter %}
                     <div class="active-filters mt-3">
                         <small class="text-muted">Active filters:</small>
-                        {% if request.GET.q %}
+                        {% if search_query %}
                             <span class="badge bg-secondary ms-2">
-                                Search: "{{ request.GET.q }}"
+                                Search: "{{ search_query }}"
                                 <a href="?{% if selected_model %}model={{ selected_model }}{% endif %}{% if selected_task_submitter %}{% if selected_model %}&{% endif %}task_submitter={{ selected_task_submitter }}{% endif %}" class="text-decoration-none text-white ms-1">×</a>
                             </span>
                         {% endif %}
                         {% if selected_model %}
                             <span class="badge bg-info ms-2">
                                 Model: {{ selected_model|truncatechars:16 }}
-                                <a href="?{% if request.GET.q %}q={{ request.GET.q }}{% endif %}{% if selected_task_submitter %}{% if request.GET.q %}&{% endif %}task_submitter={{ selected_task_submitter }}{% endif %}" class="text-decoration-none text-white ms-1">×</a>
+                                <a href="?{% if search_query %}q={{ search_query }}{% endif %}{% if selected_task_submitter %}{% if search_query %}&{% endif %}task_submitter={{ selected_task_submitter }}{% endif %}" class="text-decoration-none text-white ms-1">×</a>
                             </span>
                         {% endif %}
                         {% if selected_task_submitter %}
                             <span class="badge bg-warning ms-2">
                                 User: {{ selected_task_submitter|truncatechars:16 }}
-                                <a href="?{% if request.GET.q %}q={{ request.GET.q }}{% endif %}{% if selected_model %}{% if request.GET.q %}&{% endif %}model={{ selected_model }}{% endif %}" class="text-decoration-none text-white ms-1">×</a>
+                                <a href="?{% if search_query %}q={{ search_query }}{% endif %}{% if selected_model %}{% if search_query %}&{% endif %}model={{ selected_model }}{% endif %}" class="text-decoration-none text-white ms-1">×</a>
                             </span>
                         {% endif %}
-                        <a href="{% url 'gallery:index' %}" class="btn btn-sm btn-outline-secondary ms-2">Clear All</a>
                     </div>
                 {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Images Grid -->
+    <!-- Search Results -->
     {% if page_obj %}
+        <div class="mb-3">
+            <h5 class="text-muted">
+                Found {{ page_obj.paginator.count }} image{{ page_obj.paginator.count|pluralize }}
+                {% if search_query or selected_model or selected_task_submitter %}
+                    matching your criteria
+                {% endif %}
+            </h5>
+        </div>
+        
         <div class="image-grid">
             {% for image in page_obj %}
                 <a href="{% url 'gallery:image_detail' image.id %}" class="text-decoration-none">
@@ -161,16 +165,16 @@
 
         <!-- Pagination -->
         {% if page_obj.has_other_pages %}
-            <nav aria-label="Gallery pagination">
+            <nav aria-label="Search pagination">
                 <ul class="pagination">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                            <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
                                 <i class="bi bi-chevron-double-left"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
                                 <i class="bi bi-chevron-left"></i>
                             </a>
                         </li>
@@ -183,19 +187,19 @@
                             </li>
                         {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">{{ num }}</a>
+                                <a class="page-link" href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">{{ num }}</a>
                             </li>
                         {% endif %}
                     {% endfor %}
 
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
                                 <i class="bi bi-chevron-right"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
                                 <i class="bi bi-chevron-double-right"></i>
                             </a>
                         </li>
@@ -205,185 +209,30 @@
         {% endif %}
     {% else %}
         <div class="text-center py-5">
-            {% if request.GET.q or selected_model or selected_task_submitter %}
+            {% if search_query or selected_model or selected_task_submitter %}
                 <i class="bi bi-search" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
                 <h3>No results found</h3>
                 <p class="text-muted">
-                    No images found matching your filters
-                    {% if request.GET.q %}for "{{ request.GET.q }}"{% endif %}
+                    No images found matching your search criteria
+                    {% if search_query %}for "{{ search_query }}"{% endif %}
                     {% if selected_model %}and model {{ selected_model|truncatechars:20 }}{% endif %}
                     {% if selected_task_submitter %}and user {{ selected_task_submitter|truncatechars:20 }}{% endif %}.
-                    Try adjusting your search criteria.
+                    Try adjusting your search terms or removing some filters.
                 </p>
                 <a href="{% url 'gallery:index' %}" class="btn btn-outline-primary">
                     <i class="bi bi-arrow-left"></i> Back to Gallery
                 </a>
             {% else %}
-                <i class="bi bi-image" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
-                <h3>No images found</h3>
-                <p class="text-muted">The gallery is being populated with AI artwork from the Arbius network.</p>
+                <i class="bi bi-search" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                <h3>Search the Gallery</h3>
+                <p class="text-muted">Use the search form above to find specific images, creators, or AI models in the gallery.</p>
+                <a href="{% url 'gallery:index' %}" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left"></i> Browse All Images
+                </a>
             {% endif %}
         </div>
     {% endif %}
 </div>
-
-<style>
-.search-card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-}
-
-.search-input {
-    background: var(--input-bg);
-    border: 1px solid var(--card-border);
-    color: var(--text-primary);
-    font-size: 1.1rem;
-    padding: 0.75rem 1rem;
-    border-radius: 8px 0 0 8px;
-}
-
-.search-input:focus {
-    background: var(--input-bg);
-    border-color: var(--primary-color);
-    color: var(--text-primary);
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
-
-.search-btn {
-    background: var(--primary-gradient);
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 0 8px 8px 0;
-    font-weight: 500;
-    transition: all 0.3s ease;
-}
-
-.search-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.model-filter {
-    background: var(--input-bg);
-    border: 1px solid var(--card-border);
-    color: var(--text-primary);
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    width: 100%;
-    display: block;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23666' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 0.75rem center;
-    background-size: 16px 12px;
-    padding-right: 2.5rem;
-}
-
-.model-filter:focus {
-    background: var(--input-bg);
-    border-color: var(--primary-color);
-    color: var(--text-primary);
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
-
-.user-filter {
-    background: var(--input-bg);
-    border: 1px solid var(--card-border);
-    color: var(--text-primary);
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    font-family: 'Monaco', monospace;
-    font-size: 0.9rem;
-}
-
-.user-filter:focus {
-    background: var(--input-bg);
-    border-color: var(--primary-color);
-    color: var(--text-primary);
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
-
-.user-filter::placeholder {
-    color: var(--text-muted);
-    font-family: 'Monaco', monospace;
-}
-
-.form-label {
-    font-size: 0.9rem;
-    font-weight: 500;
-}
-
-.active-filters {
-    padding-top: 1rem;
-    border-top: 1px solid var(--card-border);
-}
-
-.badge a {
-    text-decoration: none !important;
-}
-
-.model-badge {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    background: rgba(102, 126, 234, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-left: 0.5rem;
-}
-
-.input-group {
-    max-width: none;
-    margin: 0;
-}
-
-/* Auto-submit form when model selection changes */
-.model-filter {
-    cursor: pointer;
-}
-
-.prompt-filter {
-    background: var(--input-bg);
-    border: 1px solid var(--card-border);
-    color: var(--text-primary);
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-}
-
-.prompt-filter:focus {
-    background: var(--input-bg);
-    border-color: var(--primary-color);
-    color: var(--text-primary);
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
-
-.sort-filter {
-    background: var(--input-bg);
-    border: 1px solid var(--card-border);
-    color: var(--text-primary);
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    width: 100%;
-    display: block;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23666' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 0.75rem center;
-    background-size: 16px 12px;
-    padding-right: 2.5rem;
-}
-
-.sort-filter:focus {
-    background: var(--input-bg);
-    border-color: var(--primary-color);
-    color: var(--text-primary);
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
-</style>
 
 <script>
 // Auto-submit form when model filter changes
@@ -437,4 +286,70 @@ document.getElementById('user-filter').addEventListener('keypress', function(e) 
     }
 });
 </script>
+
+<style>
+.search-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.prompt-filter, .user-filter, .model-filter, .sort-filter {
+    background: var(--input-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+}
+
+.prompt-filter:focus, .user-filter:focus, .model-filter:focus, .sort-filter:focus {
+    background: var(--input-bg);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.user-filter {
+    font-family: 'Monaco', monospace;
+    font-size: 0.9rem;
+}
+
+.user-filter::placeholder {
+    color: var(--text-muted);
+    font-family: 'Monaco', monospace;
+}
+
+.model-filter, .sort-filter {
+    background: var(--input-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    width: 100%;
+    display: block;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23666' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px 12px;
+    padding-right: 2.5rem;
+}
+
+.form-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.active-filters {
+    padding-top: 1rem;
+    border-top: 1px solid var(--card-border);
+}
+
+.badge a {
+    text-decoration: none !important;
+}
+</style>
 {% endblock %} 

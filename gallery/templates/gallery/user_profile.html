@@ -1,0 +1,226 @@
+{% extends 'gallery/base.html' %}
+
+{% block content %}
+<div class="container">
+    <!-- Profile Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="profile-header p-4 rounded-3" style="background: var(--card-bg); border: 1px solid var(--card-border);">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h1 class="profile-display-name mb-2">{{ profile.display_name|default:"Anonymous User" }}</h1>
+                        <p class="text-muted mb-2">
+                            <i class="fas fa-wallet me-2"></i>
+                            <code>{{ profile.wallet_address }}</code>
+                        </p>
+                        {% if profile.bio %}
+                            <p class="profile-bio mb-3">{{ profile.bio }}</p>
+                        {% endif %}
+                        
+                        <div class="social-links">
+                            {% if profile.website %}
+                                <a href="{{ profile.website }}" target="_blank" class="profile-website btn btn-sm btn-outline-primary me-2">
+                                    <i class="fas fa-globe"></i> Website
+                                </a>
+                            {% endif %}
+                            {% if profile.twitter_handle %}
+                                <a href="https://twitter.com/{{ profile.twitter_handle }}" target="_blank" class="profile-twitter btn btn-sm btn-outline-info">
+                                    <i class="fab fa-twitter"></i> @{{ profile.twitter_handle }}
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 text-md-end">
+                        <div class="profile-stats">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <h3 class="stats-number mb-0">{{ profile.total_images_created }}</h3>
+                                    <small class="stats-label">Images</small>
+                                </div>
+                                <div class="col-4">
+                                    <h3 class="stats-number mb-0">{{ profile.total_upvotes_received }}</h3>
+                                    <small class="stats-label">Upvotes</small>
+                                </div>
+                                <div class="col-4">
+                                    <h3 class="stats-number mb-0">{{ page_obj.paginator.count }}</h3>
+                                    <small class="stats-label">Total</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if is_own_profile %}
+                            <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                                <i class="fas fa-edit"></i> Edit Profile
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User's Images -->
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">
+                <i class="fas fa-images me-2"></i>
+                {% if is_own_profile %}Your Images{% else %}{{ profile.display_name|default:"User" }}'s Images{% endif %}
+            </h2>
+            
+            {% if page_obj %}
+                <div class="image-grid">
+                    {% for image in page_obj %}
+                        <a href="{% url 'gallery:image_detail' image.id %}" class="text-decoration-none">
+                            <div class="image-card">
+                                <div class="image-wrapper">
+                                    {% if image.is_accessible %}
+                                        <img src="{{ image.image_url }}" alt="Arbius AI Art - {{ image.cid }}" loading="lazy">
+                                    {% else %}
+                                        <div class="loading-placeholder">
+                                            <div class="text-center">
+                                                <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+                                                <div>Processing...</div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="image-info">
+                                    {% if image.clean_prompt %}
+                                        <div class="image-prompt">
+                                            <i class="bi bi-chat-square-text"></i>
+                                            "{{ image.clean_prompt|truncatechars:80 }}"
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <!-- Social Features -->
+                                    <div class="d-flex justify-content-center align-items-center mt-2">
+                                        <div class="social-stats">
+                                            <span class="me-3">
+                                                <i class="fas fa-heart text-danger"></i>
+                                                <span class="upvote-count">{{ image.upvote_count|default:0 }}</span>
+                                            </span>
+                                            <span>
+                                                <i class="fas fa-comment text-info"></i>
+                                                <span class="comment-count">{{ image.comment_count|default:0 }}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="image-meta">
+                                        <span>
+                                            <i class="bi bi-calendar3"></i>
+                                            {{ image.timestamp|date:"M d, Y" }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                    <nav aria-label="Profile images pagination">
+                        <ul class="pagination">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1">
+                                        <i class="bi bi-chevron-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                        <i class="bi bi-chevron-double-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-image" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                    <h3>No images yet</h3>
+                    <p class="text-muted">{% if is_own_profile %}You haven't{% else %}This user hasn't{% endif %} created any images yet.</p>
+                    {% if is_own_profile %}
+                        <a href="https://arbiusplayground.com/" target="_blank" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Create Your First Image
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+{% if is_own_profile %}
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background: var(--card-bg); border: 1px solid var(--card-border);">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editProfileModalLabel">Edit Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="profile-form">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="display_name" class="form-label">Display Name</label>
+                        <input type="text" class="form-control" id="display_name" name="display_name" 
+                               value="{{ profile.display_name|default:'' }}" maxlength="50">
+                    </div>
+                    <div class="mb-3">
+                        <label for="bio" class="form-label">Bio</label>
+                        <textarea class="form-control" id="bio" name="bio" rows="3" maxlength="500">{{ profile.bio|default:'' }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="website" class="form-label">Website</label>
+                        <input type="url" class="form-control" id="website" name="website" 
+                               value="{{ profile.website|default:'' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="twitter_handle" class="form-label">Twitter Handle</label>
+                        <div class="input-group">
+                            <span class="input-group-text">@</span>
+                            <input type="text" class="form-control" id="twitter_handle" name="twitter_handle" 
+                                   value="{{ profile.twitter_handle|default:'' }}" maxlength="50">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %} 
