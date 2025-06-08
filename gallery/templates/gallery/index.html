@@ -15,40 +15,82 @@
         <div class="col-12">
             <div class="search-card">
                 <form method="get" action="{% url 'gallery:search' %}" class="search-form">
-                    <div class="input-group">
-                        <input type="text" 
-                               name="q" 
-                               class="form-control search-input" 
-                               placeholder="Search images by prompt keywords..." 
-                               value="{{ request.GET.q }}"
-                               autocomplete="off">
-                        <button class="btn btn-primary search-btn" type="submit">
-                            <i class="bi bi-search"></i> Search
-                        </button>
+                    <div class="row align-items-end">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="prompt-filter" class="form-label text-muted mb-1">Filter by Prompt Keywords</label>
+                                <input type="text" 
+                                       name="q" 
+                                       id="prompt-filter"
+                                       class="form-control prompt-filter" 
+                                       placeholder="Enter keywords..." 
+                                       value="{{ request.GET.q }}"
+                                       autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="user-filter" class="form-label text-muted mb-1">Filter by User</label>
+                                <input type="text" 
+                                       name="task_submitter" 
+                                       id="user-filter"
+                                       class="form-control user-filter" 
+                                       placeholder="0x1234..."
+                                       value="{{ selected_task_submitter }}"
+                                       autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="model-filter" class="form-label text-muted mb-1">Filter by Model</label>
+                                <select name="model" id="model-filter" class="form-select model-filter">
+                                    <option value="">All Models</option>
+                                    {% for model in available_models %}
+                                        <option value="{{ model.model_id }}" 
+                                                {% if model.model_id == selected_model %}selected{% endif %}>
+                                            {{ model.model_id|truncatechars:20 }} ({{ model.count }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
                     </div>
+                    <!-- Hidden fields to preserve other filters -->
+                    {% if request.GET.q %}
+                        <input type="hidden" name="q" value="{{ request.GET.q }}">
+                    {% endif %}
+                    {% if selected_model %}
+                        <input type="hidden" name="model" value="{{ selected_model }}">
+                    {% endif %}
+                    {% if selected_task_submitter %}
+                        <input type="hidden" name="task_submitter" value="{{ selected_task_submitter }}">
+                    {% endif %}
                 </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Stats -->
-    <div class="row mb-4">
-        <div class="col-md-4 mb-3">
-            <div class="stats-card">
-                <div class="stats-number">{{ total_images }}</div>
-                <div class="stats-label">Total Images</div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="stats-card">
-                <div class="stats-number">{{ images_this_week }}</div>
-                <div class="stats-label">New This Week</div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="stats-card">
-                <div class="stats-number">{{ new_images_24h }}</div>
-                <div class="stats-label">New (24h)</div>
+                
+                {% if selected_model or request.GET.q or selected_task_submitter %}
+                    <div class="active-filters mt-3">
+                        <small class="text-muted">Active filters:</small>
+                        {% if request.GET.q %}
+                            <span class="badge bg-secondary ms-2">
+                                Search: "{{ request.GET.q }}"
+                                <a href="?{% if selected_model %}model={{ selected_model }}{% endif %}{% if selected_task_submitter %}{% if selected_model %}&{% endif %}task_submitter={{ selected_task_submitter }}{% endif %}" class="text-decoration-none text-white ms-1">×</a>
+                            </span>
+                        {% endif %}
+                        {% if selected_model %}
+                            <span class="badge bg-info ms-2">
+                                Model: {{ selected_model|truncatechars:16 }}
+                                <a href="?{% if request.GET.q %}q={{ request.GET.q }}{% endif %}{% if selected_task_submitter %}{% if request.GET.q %}&{% endif %}task_submitter={{ selected_task_submitter }}{% endif %}" class="text-decoration-none text-white ms-1">×</a>
+                            </span>
+                        {% endif %}
+                        {% if selected_task_submitter %}
+                            <span class="badge bg-warning ms-2">
+                                User: {{ selected_task_submitter|truncatechars:16 }}
+                                <a href="?{% if request.GET.q %}q={{ request.GET.q }}{% endif %}{% if selected_model %}{% if request.GET.q %}&{% endif %}model={{ selected_model }}{% endif %}" class="text-decoration-none text-white ms-1">×</a>
+                            </span>
+                        {% endif %}
+                        <a href="{% url 'gallery:index' %}" class="btn btn-sm btn-outline-secondary ms-2">Clear All</a>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -97,12 +139,12 @@
                 <ul class="pagination">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                            <a class="page-link" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}">
                                 <i class="bi bi-chevron-double-left"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}">
                                 <i class="bi bi-chevron-left"></i>
                             </a>
                         </li>
@@ -115,19 +157,19 @@
                             </li>
                         {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">{{ num }}</a>
+                                <a class="page-link" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}">{{ num }}</a>
                             </li>
                         {% endif %}
                     {% endfor %}
 
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}">
                                 <i class="bi bi-chevron-right"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}">
                                 <i class="bi bi-chevron-double-right"></i>
                             </a>
                         </li>
@@ -137,10 +179,16 @@
         {% endif %}
     {% else %}
         <div class="text-center py-5">
-            {% if request.GET.q %}
+            {% if request.GET.q or selected_model or selected_task_submitter %}
                 <i class="bi bi-search" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
                 <h3>No results found</h3>
-                <p class="text-muted">No images found matching "{{ request.GET.q }}". Try different keywords.</p>
+                <p class="text-muted">
+                    No images found matching your filters
+                    {% if request.GET.q %}for "{{ request.GET.q }}"{% endif %}
+                    {% if selected_model %}and model {{ selected_model|truncatechars:20 }}{% endif %}
+                    {% if selected_task_submitter %}and user {{ selected_task_submitter|truncatechars:20 }}{% endif %}.
+                    Try adjusting your search criteria.
+                </p>
                 <a href="{% url 'gallery:index' %}" class="btn btn-outline-primary">
                     <i class="bi bi-arrow-left"></i> Back to Gallery
                 </a>
@@ -192,9 +240,137 @@
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
+.model-filter {
+    background: var(--input-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+}
+
+.model-filter:focus {
+    background: var(--input-bg);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.user-filter {
+    background: var(--input-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-family: 'Monaco', monospace;
+    font-size: 0.9rem;
+}
+
+.user-filter:focus {
+    background: var(--input-bg);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.user-filter::placeholder {
+    color: var(--text-muted);
+    font-family: 'Monaco', monospace;
+}
+
+.form-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.active-filters {
+    padding-top: 1rem;
+    border-top: 1px solid var(--card-border);
+}
+
+.badge a {
+    text-decoration: none !important;
+}
+
+.model-badge {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: rgba(102, 126, 234, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+}
+
 .input-group {
-    max-width: 600px;
-    margin: 0 auto;
+    max-width: none;
+    margin: 0;
+}
+
+/* Auto-submit form when model selection changes */
+.model-filter {
+    cursor: pointer;
+}
+
+.prompt-filter {
+    background: var(--input-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+}
+
+.prompt-filter:focus {
+    background: var(--input-bg);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 </style>
+
+<script>
+// Auto-submit form when model filter changes
+document.getElementById('model-filter').addEventListener('change', function() {
+    this.form.submit();
+});
+
+// Auto-submit form when prompt filter changes (after user stops typing)
+let promptFilterTimeout;
+document.getElementById('prompt-filter').addEventListener('input', function() {
+    clearTimeout(promptFilterTimeout);
+    const form = this.form;
+    // Wait 1 second after user stops typing
+    promptFilterTimeout = setTimeout(function() {
+        form.submit();
+    }, 1000);
+});
+
+// Submit prompt filter on Enter key
+document.getElementById('prompt-filter').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        clearTimeout(promptFilterTimeout);
+        this.form.submit();
+    }
+});
+
+// Auto-submit form when user filter changes (after user stops typing)
+let userFilterTimeout;
+document.getElementById('user-filter').addEventListener('input', function() {
+    clearTimeout(userFilterTimeout);
+    const form = this.form;
+    // Wait 1 second after user stops typing
+    userFilterTimeout = setTimeout(function() {
+        if (document.getElementById('user-filter').value.length === 0 || 
+            document.getElementById('user-filter').value.length >= 10) {
+            form.submit();
+        }
+    }, 1000);
+});
+
+// Also submit on Enter key
+document.getElementById('user-filter').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        clearTimeout(userFilterTimeout);
+        this.form.submit();
+    }
+});
+</script>
 {% endblock %} 

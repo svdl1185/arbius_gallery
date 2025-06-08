@@ -30,34 +30,25 @@
                     <i class="bi bi-info-circle"></i> Artwork Details
                 </h3>
                 
-                <div class="mb-4">
-                    <h6 class="text-muted mb-2">IPFS Content</h6>
-                    <a href="https://ipfs.arbius.org/ipfs/{{ image.cid }}/out-1.png" target="_blank" class="text-decoration-none">
-                        <div class="image-cid" style="cursor: pointer; border: 1px solid var(--card-border);">
-                            <i class="bi bi-box-arrow-up-right"></i> View Original
-                        </div>
-                    </a>
-                </div>
-                
                 {% if image.clean_prompt %}
                 <div class="mb-4">
-                    <h6 class="text-muted mb-2">AI Generation Details</h6>
-                    {% if image.clean_prompt %}
-                        <p><i class="bi bi-chat-square-text"></i> Prompt:</p>
-                        <div class="prompt-display p-2 border rounded" style="background: var(--card-bg); max-height: 150px; overflow-y: auto;">
-                            "{{ image.clean_prompt }}"
-                        </div>
-                    {% endif %}
+                    <div class="prompt-display p-3 border rounded" style="background: var(--card-bg); max-height: 200px; overflow-y: auto; line-height: 1.5;">
+                        "{{ image.clean_prompt }}"
+                    </div>
                 </div>
                 {% endif %}
                 
                 <div class="mb-4">
                     <h6 class="text-muted mb-2">Creation Date</h6>
-                    <p><i class="bi bi-calendar3"></i> {{ image.timestamp|date:"F d, Y" }}</p>
-                    <p><i class="bi bi-clock"></i> {{ image.timestamp|time:"H:i" }} UTC</p>
+                    <p class="mb-2"><i class="bi bi-calendar3"></i> {{ image.timestamp|date:"F d, Y" }}</p>
+                    <p class="mb-0"><i class="bi bi-clock"></i> {{ image.timestamp|time:"H:i" }} UTC</p>
                 </div>
                 
                 <div class="d-grid gap-2">
+                    <a href="https://ipfs.arbius.org/ipfs/{{ image.cid }}/out-1.png" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-box-arrow-up-right"></i> View Original
+                    </a>
+                    
                     <a href="https://arbiscan.io/tx/{{ image.transaction_hash }}" 
                        target="_blank" class="btn btn-outline-info">
                         <i class="bi bi-box-arrow-up-right"></i> View on Arbiscan
@@ -71,17 +62,22 @@
         </div>
     </div>
     
-    <!-- Related Images -->
-    {% if related_images %}
+    <!-- More by Same User -->
+    {% if same_user_images %}
         <div class="row mt-5">
             <div class="col-12">
                 <div class="stats-card" style="padding: 2rem;">
-                    <h4 class="mb-4">
-                        <i class="bi bi-grid-3x3-gap"></i> More AI Artwork
-                    </h4>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="mb-0">
+                            <i class="bi bi-person-circle"></i> More by This User
+                        </h4>
+                        <a href="{% url 'gallery:search' %}?q=&task_submitter={{ image.task_submitter }}" class="btn btn-sm btn-outline-primary">
+                            View All
+                        </a>
+                    </div>
                     
                     <div class="row">
-                        {% for related in related_images %}
+                        {% for related in same_user_images %}
                             <div class="col-lg-2 col-md-3 col-4 mb-3">
                                 <a href="{% url 'gallery:image_detail' related.id %}" class="text-decoration-none">
                                     <div class="position-relative">
@@ -89,16 +85,68 @@
                                              alt="Related Arbius Art"
                                              class="img-fluid rounded hover-scale"
                                              style="aspect-ratio: 1; object-fit: cover; transition: transform 0.3s ease;">
-                                        <div class="position-absolute top-0 end-0 m-1">
-                                            <span class="badge bg-success">
-                                                <i class="bi bi-check-circle-fill"></i>
-                                            </span>
-                                        </div>
                                     </div>
                                 </a>
                             </div>
                         {% endfor %}
                     </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    
+    <!-- More from Same Model -->
+    {% if same_model_images %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="stats-card" style="padding: 2rem;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="mb-0">
+                            <i class="bi bi-cpu"></i> More from This Model
+                        </h4>
+                        <a href="{% url 'gallery:search' %}?model={{ image.model_id }}&q=" class="btn btn-sm btn-outline-info">
+                            View All
+                        </a>
+                    </div>
+                    
+                    <div class="row">
+                        {% for related in same_model_images %}
+                            <div class="col-lg-2 col-md-3 col-4 mb-3">
+                                <a href="{% url 'gallery:image_detail' related.id %}" class="text-decoration-none">
+                                    <div class="position-relative">
+                                        <img src="{{ related.image_url }}" 
+                                             alt="Related Arbius Art"
+                                             class="img-fluid rounded hover-scale"
+                                             style="aspect-ratio: 1; object-fit: cover; transition: transform 0.3s ease;">
+                                    </div>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    
+    <!-- No Related Content Message -->
+    {% if not same_user_images and not same_model_images %}
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="stats-card text-center" style="padding: 3rem;">
+                    <i class="bi bi-images" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                    <h4>No Related Content Available</h4>
+                    <p class="text-muted">
+                        We couldn't find other images from the same user or model.
+                        {% if not image.task_submitter %}
+                        <br><small>Task submitter information is not available for this image.</small>
+                        {% endif %}
+                        {% if not image.model_id %}
+                        <br><small>Model information is not available for this image.</small>
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'gallery:index' %}" class="btn btn-primary">
+                        <i class="bi bi-grid-3x3-gap"></i> Explore Gallery
+                    </a>
                 </div>
             </div>
         </div>
@@ -141,12 +189,35 @@
     transform: translateY(-1px);
 }
 
+.btn-outline-primary {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background: var(--primary-gradient);
+    border-color: transparent;
+    color: white;
+    transform: translateY(-1px);
+}
+
 .hover-scale:hover {
     transform: scale(1.05);
 }
 
 .badge {
     font-size: 0.9rem;
+}
+
+.prompt-display {
+    border: 1px solid var(--card-border) !important;
+    word-wrap: break-word;
+}
+
+.related-section {
+    border-top: 1px solid var(--card-border);
+    margin-top: 2rem;
+    padding-top: 2rem;
 }
 </style>
 {% endblock %} 

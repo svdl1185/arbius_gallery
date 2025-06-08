@@ -10,31 +10,6 @@
         </p>
     </div>
 
-    <!-- What is This Section -->
-    <div class="row mb-5">
-        <div class="col-12">
-            <div class="info-card">
-                <h2 class="section-title">
-                    <i class="bi bi-question-circle"></i> What is This Gallery?
-                </h2>
-                <div class="content">
-                    <p class="lead">This gallery showcases images generated through the <strong>Arbius protocol</strong> - a decentralized AI network running on the Arbitrum blockchain. Each image represents a unique AI computation performed by distributed miners using Proof of Useful Work (PoUW).</p>
-                    
-                    <div class="highlight-box">
-                        <p><strong>Key Features:</strong></p>
-                        <ul>
-                            <li>🤖 <strong>Decentralized AI:</strong> No single company controls the image generation</li>
-                            <li>⚡ <strong>Proof of Useful Work:</strong> Miners mine normally until a prompt arrives, then perform useful AI computation</li>
-                            <li>🔗 <strong>Blockchain Verified:</strong> Every image creation is recorded on Arbitrum</li>
-                            <li>🌐 <strong>Permanent Storage:</strong> Images stored on IPFS for long-term availability</li>
-                            <li>🔍 <strong>Transparent Process:</strong> All transactions and computations are publicly verifiable</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- How It Works Section -->
     <div class="row mb-5">
         <div class="col-12">
@@ -101,13 +76,49 @@
                     </div>
                     <div class="stat-item">
                         <div class="stat-number">{{ images_this_week }}</div>
-                        <div class="stat-label">This Week</div>
+                        <div class="stat-label">Images (Week)</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">{{ daily_average }}</div>
-                        <div class="stat-label">Daily Average</div>
+                        <div class="stat-number">{{ new_images_24h }}</div>
+                        <div class="stat-label">New (24H)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ unique_users }}</div>
+                        <div class="stat-label">Unique Users</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ new_users_this_week }}</div>
+                        <div class="stat-label">Users (Week)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ unique_models }}</div>
+                        <div class="stat-label">Models</div>
                     </div>
                 </div>
+                
+                <!-- Model Usage Details -->
+                {% if most_used_model or most_used_model_week %}
+                <div class="row mt-4">
+                    {% if most_used_model %}
+                    <div class="col-md-6">
+                        <div class="model-usage-card">
+                            <h5><i class="bi bi-trophy"></i> Most Used Model (All Time)</h5>
+                            <div class="model-id">{{ most_used_model.model_id|truncatechars:32 }}</div>
+                            <div class="model-stats">{{ most_used_model.count }} images generated</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if most_used_model_week %}
+                    <div class="col-md-6">
+                        <div class="model-usage-card">
+                            <h5><i class="bi bi-calendar-week"></i> Most Used Model (This Week)</h5>
+                            <div class="model-id">{{ most_used_model_week.model_id|truncatechars:32 }}</div>
+                            <div class="model-stats">{{ most_used_model_week.count }} images this week</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
                 
                 <!-- Charts Section -->
                 <div class="row mt-4">
@@ -155,69 +166,32 @@
                     </div>
                     <div class="col-md-4 mb-3">
                         <div class="benefit-card">
+                            <i class="bi bi-people benefit-icon"></i>
+                            <h4>Community Models</h4>
+                            <p>Anyone can register and use their own AI models on the Arbius playground, creating a diverse ecosystem of Stable Diffusion variants, custom fine-tuned models, and experimental approaches.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="benefit-card">
                             <i class="bi bi-recycle benefit-icon"></i>
                             <h4>Energy Efficient</h4>
                             <p>Proof of Useful Work combines traditional mining with AI computation, making energy use more efficient and environmentally friendly.</p>
                         </div>
                     </div>
-                    <div class="col-md-4 mb-3">
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
                         <div class="benefit-card">
                             <i class="bi bi-infinity benefit-icon"></i>
                             <h4>Permanence</h4>
                             <p>Images are stored permanently on IPFS, ensuring they remain accessible for years to come.</p>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Technical Details Section -->
-    <div class="row mb-5">
-        <div class="col-12">
-            <div class="info-card">
-                <h2 class="section-title">
-                    <i class="bi bi-code-square"></i> Technical Details
-                </h2>
-                <div class="row">
-                    <div class="col-md-6">
-                        <h4>Smart Contract Addresses</h4>
-                        <div class="contract-info">
-                            <div class="contract-item">
-                                <strong>Engine Contract:</strong>
-                                <div class="contract-address">0x9b51Ef044d3486A1fB0A2D55A6e0CeeAdd323E66</div>
-                                <a href="https://arbiscan.io/address/0x9b51Ef044d3486A1fB0A2D55A6e0CeeAdd323E66" target="_blank" class="contract-link">
-                                    <i class="bi bi-box-arrow-up-right"></i> View on Arbiscan
-                                </a>
-                            </div>
-                            
-                            <div class="contract-item mt-3">
-                                <strong>Router Contract:</strong>
-                                <div class="contract-address">0xecAba4E6a4bC1E3DE3e996a8B2c89e8B0626C9a1</div>
-                                <a href="https://arbiscan.io/address/0xecAba4E6a4bC1E3DE3e996a8B2c89e8B0626C9a1" target="_blank" class="contract-link">
-                                    <i class="bi bi-box-arrow-up-right"></i> View on Arbiscan
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <h4>Network Information</h4>
-                        <div class="network-info">
-                            <div class="info-item">
-                                <strong>Blockchain:</strong> Arbitrum One
-                            </div>
-                            <div class="info-item">
-                                <strong>AI Models:</strong> Community-driven and decentralized
-                                <div class="model-description">
-                                    <small>Anyone can register and use their own AI models on the Arbius playground. This creates a diverse ecosystem where users can choose from various Stable Diffusion variants, custom fine-tuned models, and experimental approaches contributed by the community.</small>
-                                </div>
-                            </div>
-                            {% if last_scanned_block %}
-                                <div class="info-item">
-                                    <strong>Latest Block:</strong> #{{ last_scanned_block|floatformat:"0" }}
-                                </div>
-                            {% endif %}
+                    <div class="col-md-6 mb-3">
+                        <div class="benefit-card">
+                            <i class="bi bi-globe benefit-icon"></i>
+                            <h4>Blockchain Verified</h4>
+                            <p>Every image creation is recorded on Arbitrum blockchain, making all transactions and computations publicly verifiable and transparent.</p>
                         </div>
                     </div>
                 </div>
@@ -343,6 +317,18 @@
     margin-bottom: 1rem;
 }
 
+@media (max-width: 768px) {
+    .stats-grid-compact {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid-compact {
+        grid-template-columns: 1fr;
+    }
+}
+
 .stat-item {
     text-align: center;
     padding: 1rem;
@@ -366,43 +352,42 @@
     letter-spacing: 1px;
 }
 
-.popular-models {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-top: 1rem;
-}
-
-.model-stat {
+.model-usage-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
     text-align: center;
-    color: var(--text-muted);
+    height: 100%;
 }
 
-.model-stat strong {
+.model-usage-card h5 {
     color: #ffffff;
-    display: block;
-    margin-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    font-size: 1rem;
 }
 
-.model-id {
-    font-family: 'Monaco', monospace;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 8px 12px;
-    border-radius: 6px;
-    margin-top: 0.5rem;
-    font-size: 0.8rem;
+.model-usage-card h5 i {
     color: #667eea;
+    margin-right: 0.5rem;
 }
 
-.model-description {
-    margin-top: 0.5rem;
+.model-usage-card .model-id {
+    font-family: 'Monaco', monospace;
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.3);
     padding: 0.75rem;
-    background: rgba(102, 126, 234, 0.05);
-    border-left: 3px solid #667eea;
-    border-radius: 0 8px 8px 0;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    font-size: 0.75rem;
+    color: #667eea;
+    word-break: break-all;
 }
 
-.model-description small {
-    color: rgba(255, 255, 255, 0.8);
-    line-height: 1.4;
+.model-usage-card .model-stats {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 
 .benefit-card {
@@ -493,34 +478,6 @@
     transform: translateY(-2px);
 }
 
-@media (max-width: 768px) {
-    .process-step {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .stats-grid-compact {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .link-buttons {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .info-btn {
-        width: 100%;
-        max-width: 300px;
-        justify-content: center;
-    }
-}
-
-@media (max-width: 576px) {
-    .stats-grid-compact {
-        grid-template-columns: 1fr;
-    }
-}
-
 .chart-container {
     background: rgba(255, 255, 255, 0.03);
     border-radius: 12px;
@@ -543,6 +500,24 @@
 
 .chart-wrapper canvas {
     max-height: 200px;
+}
+
+@media (max-width: 768px) {
+    .process-step {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .link-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .info-btn {
+        width: 100%;
+        max-width: 300px;
+        justify-content: center;
+    }
 }
 </style>
 
