@@ -1,12 +1,16 @@
 from django.core.management.base import BaseCommand
 from gallery.models import ArbiusImage
+from gallery.services import ArbitrumScanner
 from django.db.models import Count
 
 
 class Command(BaseCommand):
-    help = 'List all unique model IDs and their transaction examples'
+    help = 'List all unique model IDs and find their task transactions'
 
     def handle(self, *args, **options):
+        # Initialize the scanner to search for task transactions
+        scanner = ArbitrumScanner()
+        
         # Get all unique model IDs with counts
         model_stats = (ArbiusImage.objects
                       .exclude(model_id__isnull=True)
@@ -16,6 +20,7 @@ class Command(BaseCommand):
                       .order_by('-count'))
         
         self.stdout.write(f"\n🎯 Found {len(model_stats)} unique model IDs:\n")
+        self.stdout.write("🔍 Searching for task transactions...\n")
         
         for i, stat in enumerate(model_stats, 1):
             model_id = stat['model_id']
@@ -33,19 +38,39 @@ class Command(BaseCommand):
                 solution_arbiscan_url = f"https://arbiscan.io/tx/{solution_tx_hash}"
                 self.stdout.write(f"   Sample Solution Transaction: {solution_arbiscan_url}")
                 
-                # Show task transaction (where the model ID was specified)
+                # Try to find the actual task transaction
                 if sample_image.task_id and sample_image.task_id != '0x0000000000000000000000000000000000000000000000000000000000000000':
-                    # The task_id is the task transaction hash (though system tries to find it via events)
-                    # For now, let's show the task_id which should link to the task
                     self.stdout.write(f"   Task ID: {sample_image.task_id}")
-                    self.stdout.write(f"   ⚠️  To find task transaction, search for TaskSubmitted events with this task_id")
+                    
+                    # Search for the task transaction using the scanner
+                    try:
+                        self.stdout.write("   🔍 Searching for task transaction...")
+                        task_data = scanner.find_task_by_id_optimized(
+                            sample_image.task_id, 
+                            sample_image.block_number,
+                            max_search_range=20000  # Search back 20k blocks
+                        )
+                        
+                        if task_data and task_data.get('transaction_hash'):
+                            task_tx_hash = task_data['transaction_hash']
+                            task_arbiscan_url = f"https://arbiscan.io/tx/{task_tx_hash}"
+                            self.stdout.write(f"   ✅ Task Transaction: {task_arbiscan_url}")
+                            
+                            if task_data.get('submitter'):
+                                self.stdout.write(f"   Task Submitter: {task_data['submitter']}")
+                            if task_data.get('fee'):
+                                fee_eth = int(task_data['fee']) / 1e18
+                                self.stdout.write(f"   Fee: {fee_eth:.6f} ETH")
+                        else:
+                            self.stdout.write(f"   ❌ Task transaction not found (may be too old)")
+                            
+                    except Exception as e:
+                        self.stdout.write(f"   ❌ Error searching for task: {str(e)}")
                 
                 if sample_image.prompt:
                     prompt_preview = sample_image.prompt[:60] + "..." if len(sample_image.prompt) > 60 else sample_image.prompt
                     self.stdout.write(f"   Sample Prompt: \"{prompt_preview}\"")
                 
-                if sample_image.task_submitter:
-                    self.stdout.write(f"   Task Submitter: {sample_image.task_submitter}")
                 if sample_image.solution_provider:
                     self.stdout.write(f"   Solution Provider: {sample_image.solution_provider}")
             
@@ -60,4 +85,4 @@ class Command(BaseCommand):
         self.stdout.write(f"\n📊 Total images in database: {total_images}")
         self.stdout.write(f"\n💡 Note: Solution transactions contain the generated images (CIDs)")
         self.stdout.write(f"💡 Task transactions contain the model IDs and original prompts")
-        self.stdout.write(f"💡 To find task transactions, search Arbiscan for TaskSubmitted events with the task_id") 
+        self.stdout.write(f"💡 This command searches for actual task transactions using the Arbiscan API") 
