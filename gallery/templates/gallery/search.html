@@ -114,8 +114,8 @@
         
         <div class="image-grid">
             {% for image in page_obj %}
-                <a href="{% url 'gallery:image_detail' image.id %}" class="text-decoration-none">
-                    <div class="image-card">
+                <div class="image-card" data-image-id="{{ image.id }}">
+                    <a href="{% url 'gallery:image_detail' image.id %}" class="text-decoration-none image-link">
                         <div class="image-wrapper">
                             {% if image.is_accessible %}
                                 <img src="{{ image.image_url }}" alt="Arbius AI Art - {{ image.cid }}" loading="lazy">
@@ -136,30 +136,31 @@
                                     "{{ image.clean_prompt|truncatechars:80 }}"
                                 </div>
                             {% endif %}
-                            
-                            <!-- Social Features -->
-                            <div class="d-flex justify-content-center align-items-center mt-2">
-                                <div class="social-stats">
-                                    <span class="me-3">
-                                        <i class="fas fa-heart text-danger"></i>
-                                        <span class="upvote-count">{{ image.upvote_count|default:0 }}</span>
-                                    </span>
-                                    <span>
-                                        <i class="fas fa-comment text-info"></i>
-                                        <span class="comment-count">{{ image.comment_count|default:0 }}</span>
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            <div class="image-meta">
-                                <span>
-                                    <i class="bi bi-calendar3"></i>
-                                    {{ image.timestamp|date:"M d, Y" }}
-                                </span>
-                            </div>
+                        </div>
+                    </a>
+                    
+                    <!-- Social Features -->
+                    <div class="d-flex justify-content-between align-items-center mt-2 px-3 pb-3">
+                        <div class="social-stats d-flex align-items-center">
+                            <button class="upvote-btn me-3 {% if wallet_address %}clickable-upvote{% endif %}" 
+                                    data-image-id="{{ image.id }}" 
+                                    {% if not wallet_address %}disabled title="Connect wallet to upvote"{% endif %}>
+                                <i class="fas fa-heart text-danger"></i>
+                                <span class="upvote-count">{{ image.upvote_count|default:0 }}</span>
+                            </button>
+                            <span class="me-3">
+                                <i class="fas fa-comment text-info"></i>
+                                <span class="comment-count">{{ image.comment_count|default:0 }}</span>
+                            </span>
+                        </div>
+                        <div class="image-date">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar3"></i>
+                                {{ image.timestamp|date:"M d, Y" }}
+                            </small>
                         </div>
                     </div>
-                </a>
+                </div>
             {% endfor %}
         </div>
 

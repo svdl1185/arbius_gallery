@@ -63,16 +63,33 @@
     <!-- User's Images -->
     <div class="row">
         <div class="col-12">
-            <h2 class="mb-4">
-                <i class="fas fa-images me-2"></i>
-                {% if is_own_profile %}Your Images{% else %}{{ profile.display_name|default:"User" }}'s Images{% endif %}
-            </h2>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-images me-2"></i>
+                    {% if is_own_profile %}Your Images{% else %}{{ profile.display_name|default:"User" }}'s Images{% endif %}
+                </h2>
+                
+                <!-- Sort Dropdown -->
+                {% if page_obj %}
+                <div class="sort-section">
+                    <form method="get" id="sort-form" class="d-inline">
+                        {% if request.GET.page %}<input type="hidden" name="page" value="{{ request.GET.page }}">{% endif %}
+                        <select name="sort" class="sort-filter" onchange="document.getElementById('sort-form').submit();">
+                            <option value="upvotes" {% if sort_by == 'upvotes' %}selected{% endif %}>Most Upvoted</option>
+                            <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
+                            <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest</option>
+                            <option value="comments" {% if sort_by == 'comments' %}selected{% endif %}>Most Commented</option>
+                        </select>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
             
             {% if page_obj %}
                 <div class="image-grid">
                     {% for image in page_obj %}
-                        <a href="{% url 'gallery:image_detail' image.id %}" class="text-decoration-none">
-                            <div class="image-card">
+                        <div class="image-card" data-image-id="{{ image.id }}">
+                            <a href="{% url 'gallery:image_detail' image.id %}" class="text-decoration-none image-link">
                                 <div class="image-wrapper">
                                     {% if image.is_accessible %}
                                         <img src="{{ image.image_url }}" alt="Arbius AI Art - {{ image.cid }}" loading="lazy">
@@ -93,30 +110,31 @@
                                             "{{ image.clean_prompt|truncatechars:80 }}"
                                         </div>
                                     {% endif %}
-                                    
-                                    <!-- Social Features -->
-                                    <div class="d-flex justify-content-center align-items-center mt-2">
-                                        <div class="social-stats">
-                                            <span class="me-3">
-                                                <i class="fas fa-heart text-danger"></i>
-                                                <span class="upvote-count">{{ image.upvote_count|default:0 }}</span>
-                                            </span>
-                                            <span>
-                                                <i class="fas fa-comment text-info"></i>
-                                                <span class="comment-count">{{ image.comment_count|default:0 }}</span>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="image-meta">
-                                        <span>
-                                            <i class="bi bi-calendar3"></i>
-                                            {{ image.timestamp|date:"M d, Y" }}
-                                        </span>
-                                    </div>
+                                </div>
+                            </a>
+                            
+                            <!-- Social Features -->
+                            <div class="d-flex justify-content-between align-items-center mt-2 px-3 pb-3">
+                                <div class="social-stats d-flex align-items-center">
+                                    <button class="upvote-btn me-3 {% if wallet_address %}clickable-upvote{% endif %}" 
+                                            data-image-id="{{ image.id }}" 
+                                            {% if not wallet_address %}disabled title="Connect wallet to upvote"{% endif %}>
+                                        <i class="fas fa-heart text-danger"></i>
+                                        <span class="upvote-count">{{ image.upvote_count|default:0 }}</span>
+                                    </button>
+                                    <span class="me-3">
+                                        <i class="fas fa-comment text-info"></i>
+                                        <span class="comment-count">{{ image.comment_count|default:0 }}</span>
+                                    </span>
+                                </div>
+                                <div class="image-date">
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar3"></i>
+                                        {{ image.timestamp|date:"M d, Y" }}
+                                    </small>
                                 </div>
                             </div>
-                        </a>
+                        </div>
                     {% endfor %}
                 </div>
 
@@ -126,12 +144,12 @@
                         <ul class="pagination">
                             {% if page_obj.has_previous %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page=1">
+                                    <a class="page-link" href="?page=1{% if sort_by %}&sort={{ sort_by }}{% endif %}">
                                         <i class="bi bi-chevron-double-left"></i>
                                     </a>
                                 </li>
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
                                         <i class="bi bi-chevron-left"></i>
                                     </a>
                                 </li>
@@ -144,19 +162,19 @@
                                     </li>
                                 {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                                     <li class="page-item">
-                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                        <a class="page-link" href="?page={{ num }}{% if sort_by %}&sort={{ sort_by }}{% endif %}">{{ num }}</a>
                                     </li>
                                 {% endif %}
                             {% endfor %}
 
                             {% if page_obj.has_next %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
                                         <i class="bi bi-chevron-right"></i>
                                     </a>
                                 </li>
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
                                         <i class="bi bi-chevron-double-right"></i>
                                     </a>
                                 </li>

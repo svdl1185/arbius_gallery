@@ -134,16 +134,44 @@
             background: none;
             border: 1px solid var(--card-border);
             color: var(--text-muted);
-            padding: 8px 12px;
-            border-radius: 20px;
+            padding: 6px 10px;
+            border-radius: 15px;
             transition: all 0.3s ease;
             cursor: pointer;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
         
         .upvote-btn:hover, .upvote-btn.upvoted {
             background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
             border-color: #ff6b6b;
             color: white;
+            transform: translateY(-1px);
+        }
+        
+        .upvote-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .upvote-btn:disabled:hover {
+            background: none;
+            border-color: var(--card-border);
+            color: var(--text-muted);
+            transform: none;
+        }
+        
+        .clickable-upvote {
+            cursor: pointer;
+        }
+        
+        .clickable-upvote:hover {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            border-color: #ff6b6b;
+            color: white;
+            transform: translateY(-1px);
         }
         
         .comment-form {

@@ -15,9 +15,20 @@ class SocialFeatures {
     }
 
     setupUpvoteButtons() {
-        const upvoteButtons = document.querySelectorAll('.upvote-btn');
+        // Handle traditional upvote buttons (on detail pages)
+        const upvoteButtons = document.querySelectorAll('.upvote-btn:not(.clickable-upvote)');
         upvoteButtons.forEach(btn => {
             btn.addEventListener('click', (e) => this.handleUpvote(e));
+        });
+
+        // Handle clickable upvote buttons on image tiles
+        const clickableUpvoteButtons = document.querySelectorAll('.clickable-upvote');
+        clickableUpvoteButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();  // Prevent navigation to image detail
+                this.handleUpvote(e);
+            });
         });
     }
 
@@ -53,8 +64,17 @@ class SocialFeatures {
 
         // Disable button during request
         button.disabled = true;
-        const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        const originalContent = button.innerHTML;
+        const isClickableTile = button.classList.contains('clickable-upvote');
+        
+        // Show loading state
+        if (isClickableTile) {
+            const heartIcon = button.querySelector('i');
+            const countSpan = button.querySelector('.upvote-count');
+            heartIcon.className = 'fas fa-spinner fa-spin text-danger';
+        } else {
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
 
         try {
             const response = await fetch(`/gallery/api/image/${imageId}/upvote/`, {
@@ -68,18 +88,32 @@ class SocialFeatures {
             const data = await response.json();
 
             if (data.success) {
-                // Update button state
-                if (data.upvoted) {
-                    button.classList.add('upvoted');
-                    button.innerHTML = '<i class="fas fa-heart"></i>';
+                // Update button state and count
+                const countElement = button.querySelector('.upvote-count') || 
+                                   button.parentNode.querySelector('.upvote-count') ||
+                                   document.querySelector(`[data-image-id="${imageId}"] .upvote-count`);
+                
+                if (isClickableTile) {
+                    const heartIcon = button.querySelector('i');
+                    if (data.upvoted) {
+                        button.classList.add('upvoted');
+                        heartIcon.className = 'fas fa-heart text-danger';
+                    } else {
+                        button.classList.remove('upvoted');
+                        heartIcon.className = 'fas fa-heart text-danger';
+                    }
                 } else {
-                    button.classList.remove('upvoted');
-                    button.innerHTML = '<i class="far fa-heart"></i>';
+                    // Detail page button
+                    if (data.upvoted) {
+                        button.classList.add('upvoted');
+                        button.innerHTML = '<i class="fas fa-heart"></i> Upvoted';
+                    } else {
+                        button.classList.remove('upvoted');
+                        button.innerHTML = '<i class="far fa-heart"></i> Upvote';
+                    }
                 }
 
                 // Update count
-                const countElement = button.querySelector('.upvote-count') || 
-                                   button.parentNode.querySelector('.upvote-count');
                 if (countElement) {
                     countElement.textContent = data.upvote_count;
                 }
@@ -94,7 +128,7 @@ class SocialFeatures {
         } catch (error) {
             console.error('Error upvoting:', error);
             this.showAlert(`Failed to upvote: ${error.message}`, 'error');
-            button.innerHTML = originalText;
+            button.innerHTML = originalContent;
         } finally {
             button.disabled = false;
         }

@@ -413,10 +413,26 @@ def user_profile(request, wallet_address):
     """Display user profile page"""
     profile = get_object_or_404(UserProfile, wallet_address__iexact=wallet_address)
     
-    # Get user's images - simplified for now
+    # Get sort parameter
+    sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
+    
+    # Get user's images with sorting
     user_images = get_base_queryset().filter(
         task_submitter__iexact=wallet_address
-    ).order_by('-timestamp')
+    )
+    
+    # Apply sorting
+    if sort_by == 'upvotes':
+        user_images = user_images.annotate(upvote_count_db=Count('upvotes')).order_by('-upvote_count_db', '-timestamp')
+    elif sort_by == 'comments':
+        user_images = user_images.annotate(comment_count_db=Count('comments')).order_by('-comment_count_db', '-timestamp')
+    elif sort_by == 'newest':
+        user_images = user_images.order_by('-timestamp')
+    elif sort_by == 'oldest':
+        user_images = user_images.order_by('timestamp')
+    else:
+        # Default fallback to most upvoted
+        user_images = user_images.annotate(upvote_count_db=Count('upvotes')).order_by('-upvote_count_db', '-timestamp')
     
     # Pagination
     paginator = Paginator(user_images, 24)
@@ -431,6 +447,7 @@ def user_profile(request, wallet_address):
     context = {
         'profile': profile,
         'page_obj': page_obj,
+        'sort_by': sort_by,
         'is_own_profile': is_own_profile,
         'wallet_address': getattr(request, 'wallet_address', None),
         'user_profile': getattr(request, 'user_profile', None),
