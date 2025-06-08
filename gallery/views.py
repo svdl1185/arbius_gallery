@@ -408,7 +408,6 @@ def add_comment(request, image_id):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@require_wallet_auth
 def user_profile(request, wallet_address):
     """Display user profile page"""
     profile = get_object_or_404(UserProfile, wallet_address__iexact=wallet_address)
@@ -439,18 +438,22 @@ def user_profile(request, wallet_address):
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     
-    # Check if viewing own profile
+    # Check if viewing own profile (only if user is authenticated)
     is_own_profile = (hasattr(request, 'wallet_address') and 
                      request.wallet_address and 
                      request.wallet_address.lower() == wallet_address.lower())
+    
+    # Get current user's wallet address and profile (may be None for visitors)
+    current_wallet_address = getattr(request, 'wallet_address', None)
+    current_user_profile = getattr(request, 'user_profile', None)
     
     context = {
         'profile': profile,
         'page_obj': page_obj,
         'sort_by': sort_by,
         'is_own_profile': is_own_profile,
-        'wallet_address': getattr(request, 'wallet_address', None),
-        'user_profile': getattr(request, 'user_profile', None),
+        'wallet_address': current_wallet_address,  # Current user's wallet (may be None)
+        'user_profile': current_user_profile,  # Current user's profile (may be None)
     }
     return render(request, 'gallery/user_profile.html', context)
 
