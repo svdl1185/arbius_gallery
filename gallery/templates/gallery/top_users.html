@@ -1,0 +1,462 @@
+{% extends 'gallery/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="leaderboard-header text-center">
+                <h1 class="display-4 mb-3">
+                    <i class="bi bi-trophy-fill me-3" style="color: #ffd700;"></i>
+                    Top Creators Leaderboard
+                </h1>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sorting Controls -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="sort-controls">
+                <div class="d-flex justify-content-center gap-2">
+                    <a href="?sort=images" class="btn btn-sort {% if sort_by == 'images' %}active{% endif %}">
+                        <i class="bi bi-images me-2"></i>
+                        Sort by Images
+                    </a>
+                    <a href="?sort=upvotes" class="btn btn-sort {% if sort_by == 'upvotes' %}active{% endif %}">
+                        <i class="bi bi-heart-fill me-2"></i>
+                        Sort by Upvotes
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="leaderboard-table-container">
+                <div class="table-responsive">
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th class="rank-col">Rank</th>
+                                <th class="user-col">User</th>
+                                <th class="stats-col">Images</th>
+                                <th class="stats-col">Upvotes</th>
+                                <th class="action-col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for creator in top_creators %}
+                                <tr class="leaderboard-row {% if creator.rank <= 3 %}top-{{ creator.rank }}{% endif %}">
+                                    <td class="rank-cell">
+                                        <div class="rank-display">
+                                            {% if creator.rank == 1 %}
+                                                <i class="bi bi-trophy-fill rank-icon gold"></i>
+                                            {% elif creator.rank == 2 %}
+                                                <i class="bi bi-award-fill rank-icon silver"></i>
+                                            {% elif creator.rank == 3 %}
+                                                <i class="bi bi-award-fill rank-icon bronze"></i>
+                                            {% else %}
+                                                <span class="rank-number">#{{ creator.rank }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="user-cell">
+                                        <div class="user-info">
+                                            <div class="display-name">
+                                                <a href="{% url 'gallery:user_profile' creator.wallet_address %}" 
+                                                   class="user-link">
+                                                    {{ creator.display_name }}
+                                                </a>
+                                            </div>
+                                            <div class="wallet-address">
+                                                <i class="bi bi-wallet2 me-1"></i>
+                                                {{ creator.short_address }}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="stats-cell">
+                                        <div class="stat-value {% if sort_by == 'images' %}primary{% endif %}">
+                                            {{ creator.image_count }}
+                                        </div>
+                                    </td>
+                                    <td class="stats-cell">
+                                        <div class="stat-value {% if sort_by == 'upvotes' %}primary{% endif %}">
+                                            {{ creator.total_upvotes }}
+                                        </div>
+                                    </td>
+                                    <td class="action-cell">
+                                        <a href="{% url 'gallery:user_profile' creator.wallet_address %}" 
+                                           class="btn btn-view btn-sm">
+                                            <i class="bi bi-eye me-1"></i>
+                                            View
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5">
+                                        <i class="bi bi-people" style="font-size: 3rem; color: var(--text-muted);"></i>
+                                        <h4 class="mt-3">No creators found</h4>
+                                        <p class="text-muted">Check back later for leaderboard updates!</p>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Call to Action -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="cta-card text-center">
+                <h3 class="mb-3">
+                    <i class="bi bi-plus-circle-fill me-2"></i>
+                    Join the Community
+                </h3>
+                <p class="lead mb-4">
+                    Create amazing AI artwork and climb the leaderboard!
+                </p>
+                <div class="cta-buttons">
+                    <a href="https://arbiusplayground.com/" target="_blank" class="btn btn-primary btn-lg me-3">
+                        <i class="bi bi-play-circle-fill me-2"></i>
+                        Start Creating
+                    </a>
+                    <a href="{% url 'gallery:index' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-grid-3x3-gap me-2"></i>
+                        Browse Gallery
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.leaderboard-header {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+}
+
+.leaderboard-header h1 {
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+}
+
+.bg-gradient-primary {
+    background: var(--primary-gradient) !important;
+}
+
+/* Sort Controls */
+.sort-controls {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 1rem;
+    backdrop-filter: blur(10px);
+}
+
+.btn-sort {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    color: var(--text-muted);
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.btn-sort:hover {
+    background: rgba(102, 126, 234, 0.1);
+    border-color: rgba(102, 126, 234, 0.3);
+    color: #667eea;
+    transform: translateY(-1px);
+}
+
+.btn-sort.active {
+    background: var(--primary-gradient);
+    border-color: transparent;
+    color: white;
+    font-weight: 600;
+}
+
+/* Table Styles */
+.leaderboard-table-container {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+}
+
+.leaderboard-table thead th {
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1rem;
+    border-bottom: 1px solid var(--card-border);
+    text-align: left;
+}
+
+.leaderboard-table tbody td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    vertical-align: middle;
+}
+
+.leaderboard-row {
+    transition: all 0.3s ease;
+}
+
+.leaderboard-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.leaderboard-row.top-1 {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.08) 0%, rgba(255, 237, 78, 0.08) 100%);
+}
+
+.leaderboard-row.top-2 {
+    background: linear-gradient(135deg, rgba(192, 192, 192, 0.08) 0%, rgba(220, 220, 220, 0.08) 100%);
+}
+
+.leaderboard-row.top-3 {
+    background: linear-gradient(135deg, rgba(205, 127, 50, 0.08) 0%, rgba(184, 115, 51, 0.08) 100%);
+}
+
+/* Column Widths */
+.rank-col { width: 80px; }
+.user-col { width: auto; min-width: 200px; }
+.stats-col { width: 100px; }
+.action-col { width: 120px; }
+
+/* Cell Content */
+.rank-display {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.rank-icon {
+    font-size: 1.2rem;
+}
+
+.rank-icon.gold { color: #ffd700; }
+.rank-icon.silver { color: #c0c0c0; }
+.rank-icon.bronze { color: #cd7f32; }
+
+.rank-number {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.display-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.user-link {
+    color: #ffffff;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.user-link:hover {
+    color: #667eea;
+    text-decoration: none;
+}
+
+.wallet-address {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: 'Monaco', monospace;
+}
+
+.stats-cell {
+    text-align: center;
+}
+
+.stat-value {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-muted);
+}
+
+.stat-value.primary {
+    color: #667eea;
+    font-weight: 700;
+}
+
+.action-cell {
+    text-align: center;
+}
+
+.btn-view {
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    color: #667eea;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.btn-view:hover {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: #667eea;
+    color: #667eea;
+    transform: translateY(-1px);
+}
+
+/* CTA Section */
+.cta-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    backdrop-filter: blur(10px);
+}
+
+.cta-buttons {
+    margin-top: 2rem;
+}
+
+.btn-primary {
+    background: var(--primary-gradient);
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.btn-outline-secondary {
+    border: 1px solid var(--card-border);
+    color: var(--text-muted);
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+    background: var(--card-bg);
+    border-color: var(--card-border);
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .leaderboard-header {
+        padding: 1.5rem 1rem;
+    }
+    
+    .leaderboard-header h1 {
+        font-size: 2rem;
+    }
+    
+    .sort-controls {
+        padding: 0.75rem;
+    }
+    
+    .btn-sort {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+    
+    .leaderboard-table thead th {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    .leaderboard-table tbody td {
+        padding: 0.5rem;
+    }
+    
+    .user-col {
+        min-width: 150px;
+    }
+    
+    .stats-col {
+        width: 70px;
+    }
+    
+    .action-col {
+        width: 80px;
+    }
+    
+    .btn-view {
+        padding: 2px 8px;
+        font-size: 0.7rem;
+    }
+    
+    .btn-view .bi {
+        display: none;
+    }
+    
+    .cta-buttons {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .cta-buttons .btn {
+        width: 100%;
+        margin-right: 0 !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .rank-col { width: 50px; }
+    .stats-col { width: 60px; }
+    .action-col { width: 70px; }
+    
+    .display-name {
+        font-size: 0.85rem;
+    }
+    
+    .wallet-address {
+        font-size: 0.7rem;
+    }
+    
+    .stat-value {
+        font-size: 0.9rem;
+    }
+}
+</style>
+{% endblock %} 

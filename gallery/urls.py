@@ -7,6 +7,7 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('search/', views.search, name='search'),
     path('info/', views.info, name='info'),
+    path('top-users/', views.top_users, name='top_users'),
     path('image/<int:image_id>/', views.image_detail, name='image_detail'),
     
     path('api/connect-wallet/', views.connect_wallet, name='connect_wallet'),

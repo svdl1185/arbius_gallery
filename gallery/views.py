@@ -655,3 +655,83 @@ def update_profile(request):
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+def top_users(request):
+    """Display top 50 users by image creation count or upvotes"""
+    
+    # Get sort parameter - 'images' (default) or 'upvotes'
+    sort_by = request.GET.get('sort', 'images')
+    
+    if sort_by == 'upvotes':
+        # Sort by total upvotes received - use a simpler approach
+        # Get all users who have created images, then sort by upvotes
+        top_creators_raw = get_base_queryset().filter(
+            task_submitter__isnull=False
+        ).values('task_submitter').annotate(
+            image_count=Count('id'),
+            total_upvotes=Count('upvotes', distinct=True)
+        ).order_by('-total_upvotes', '-image_count')[:50]
+        
+        # Convert to consistent format
+        top_creators = []
+        for creator in top_creators_raw:
+            top_creators.append({
+                'task_submitter': creator['task_submitter'],
+                'image_count': creator['image_count'],
+                'total_upvotes': creator['total_upvotes']
+            })
+        
+    else:
+        # Default: Sort by image count (existing logic)
+        top_creators_raw = get_base_queryset().filter(
+            task_submitter__isnull=False
+        ).values('task_submitter').annotate(
+            image_count=Count('id')
+        ).order_by('-image_count')[:50]
+        
+        # Convert to consistent format and add upvote counts
+        top_creators = []
+        for creator in top_creators_raw:
+            # Get upvotes for this user
+            total_upvotes = ImageUpvote.objects.filter(
+                image__task_submitter__iexact=creator['task_submitter']
+            ).count()
+            
+            top_creators.append({
+                'task_submitter': creator['task_submitter'],
+                'image_count': creator['image_count'],
+                'total_upvotes': total_upvotes
+            })
+    
+    # Enrich the data with user profiles and additional stats
+    enriched_creators = []
+    for i, creator in enumerate(top_creators, 1):
+        wallet_address = creator['task_submitter']
+        image_count = creator['image_count']
+        total_upvotes = creator['total_upvotes']
+        
+        # Try to get user profile for display name
+        try:
+            profile = UserProfile.objects.get(wallet_address__iexact=wallet_address)
+            display_name = profile.display_name
+        except UserProfile.DoesNotExist:
+            display_name = get_display_name_for_wallet(wallet_address)
+        
+        enriched_creators.append({
+            'rank': i,
+            'wallet_address': wallet_address,
+            'display_name': display_name,
+            'image_count': image_count,
+            'total_upvotes': total_upvotes,
+            'short_address': f"{wallet_address[:6]}...{wallet_address[-4:]}",
+        })
+    
+    context = {
+        'top_creators': enriched_creators,
+        'sort_by': sort_by,
+        'wallet_address': getattr(request, 'wallet_address', None),
+        'user_profile': getattr(request, 'user_profile', None),
+    }
+    
+    return render(request, 'gallery/top_users.html', context)
