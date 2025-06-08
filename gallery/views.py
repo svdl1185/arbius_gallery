@@ -29,6 +29,21 @@ def get_base_queryset():
     )
 
 
+def get_image_models_queryset():
+    """Get queryset that only includes valid image generation models"""
+    return get_base_queryset().exclude(
+        model_id__isnull=True
+    ).exclude(
+        model_id=''
+    ).exclude(
+        model_id__startswith='0x000000'  # Filter out null/empty model IDs
+    ).exclude(
+        model_id='0x89c39001e3b23d209b5c97bf881ed427aa6c54b5af2b3bc4b0b63e5b0c66e4bf6'  # Filter out text model
+    ).exclude(
+        model_id='0x6cb3eed9fe3f32da1a23e923a61b5f0b43c5c66b16b6c4b99c81a0bf32b0ac0f'  # Filter out text model
+    )
+
+
 def index(request):
     """Gallery index view with automatic pagination and model filtering"""
     # Get base queryset
@@ -48,17 +63,7 @@ def index(request):
     images = images.order_by('-timestamp')
     
     # Get available models for filter dropdown
-    available_models = get_base_queryset().exclude(
-        model_id__isnull=True
-    ).exclude(
-        model_id=''
-    ).exclude(
-        model_id__startswith='0x000000'  # Filter out null/empty model IDs
-    ).exclude(
-        model_id='0x89c39001e3b23d209b5c97bf881ed427aa6c54b5af2b3bc4b0b63e5b0c66e4bf6'  # Filter out non-image model
-    ).exclude(
-        model_id='0x6cb3eed9fe3f32da1a23e923a61b5f0b43c5c66b16b6c4b99c81a0bf32b0ac0f'  # Filter out non-image model
-    ).values('model_id').annotate(
+    available_models = get_image_models_queryset().values('model_id').annotate(
         count=Count('id')
     ).order_by('-count')[:20]  # Top 20 models by usage
     
@@ -126,17 +131,7 @@ def search(request):
     images = images.order_by('-timestamp')
     
     # Get available models for filter dropdown
-    available_models = get_base_queryset().exclude(
-        model_id__isnull=True
-    ).exclude(
-        model_id=''
-    ).exclude(
-        model_id__startswith='0x000000'  # Filter out null/empty model IDs
-    ).exclude(
-        model_id='0x89c39001e3b23d209b5c97bf881ed427aa6c54b5af2b3bc4b0b63e5b0c66e4bf6'  # Filter out non-image model
-    ).exclude(
-        model_id='0x6cb3eed9fe3f32da1a23e923a61b5f0b43c5c66b16b6c4b99c81a0bf32b0ac0f'  # Filter out non-image model
-    ).values('model_id').annotate(
+    available_models = get_image_models_queryset().values('model_id').annotate(
         count=Count('id')
     ).order_by('-count')[:20]  # Top 20 models by usage
     
@@ -242,11 +237,7 @@ def info(request):
     ).values('task_submitter').distinct().count()
     
     # Number of different models
-    unique_models = valid_images.exclude(
-        model_id__isnull=True
-    ).exclude(
-        model_id=''
-    ).values('model_id').distinct().count()
+    unique_models = get_image_models_queryset().values('model_id').distinct().count()
     
     # New users this week
     new_users_this_week = valid_images.filter(
@@ -258,21 +249,13 @@ def info(request):
     ).values('task_submitter').distinct().count()
     
     # Most used model overall
-    most_used_model = valid_images.exclude(
-        model_id__isnull=True
-    ).exclude(
-        model_id=''
-    ).values('model_id').annotate(
+    most_used_model = get_image_models_queryset().values('model_id').annotate(
         count=Count('id')
     ).order_by('-count').first()
     
     # Most used model this week
-    most_used_model_week = valid_images.filter(
+    most_used_model_week = get_image_models_queryset().filter(
         timestamp__gte=one_week_ago
-    ).exclude(
-        model_id__isnull=True
-    ).exclude(
-        model_id=''
     ).values('model_id').annotate(
         count=Count('id')
     ).order_by('-count').first()
