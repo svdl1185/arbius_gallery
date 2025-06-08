@@ -52,6 +52,12 @@ def index(request):
         model_id__isnull=True
     ).exclude(
         model_id=''
+    ).exclude(
+        model_id__startswith='0x000000'  # Filter out null/empty model IDs
+    ).exclude(
+        model_id='0x89c39001e3b23d209b5c97bf881ed427aa6c54b5af2b3bc4b0b63e5b0c66e4bf6'  # Filter out non-image model
+    ).exclude(
+        model_id='0x6cb3eed9fe3f32da1a23e923a61b5f0b43c5c66b16b6c4b99c81a0bf32b0ac0f'  # Filter out non-image model
     ).values('model_id').annotate(
         count=Count('id')
     ).order_by('-count')[:20]  # Top 20 models by usage
@@ -124,6 +130,12 @@ def search(request):
         model_id__isnull=True
     ).exclude(
         model_id=''
+    ).exclude(
+        model_id__startswith='0x000000'  # Filter out null/empty model IDs
+    ).exclude(
+        model_id='0x89c39001e3b23d209b5c97bf881ed427aa6c54b5af2b3bc4b0b63e5b0c66e4bf6'  # Filter out non-image model
+    ).exclude(
+        model_id='0x6cb3eed9fe3f32da1a23e923a61b5f0b43c5c66b16b6c4b99c81a0bf32b0ac0f'  # Filter out non-image model
     ).values('model_id').annotate(
         count=Count('id')
     ).order_by('-count')[:20]  # Top 20 models by usage
