@@ -487,6 +487,99 @@
             font-size: 1.1rem;
         }
         
+        /* Profile Page Styles */
+        .profile-header {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .profile-display-name {
+            font-weight: 700;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+        
+        .profile-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .wallet-address-container {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .wallet-address-text {
+            font-family: 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: #ffffff;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+        
+        .profile-bio {
+            display: flex;
+            align-items: flex-start;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            line-height: 1.5;
+        }
+        
+        .profile-stats-container {
+            margin-top: 1.5rem;
+        }
+        
+        .stat-card {
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .images-section-header {
+            backdrop-filter: blur(10px);
+        }
+        
+        .sort-section {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .sort-filter {
+            background: var(--card-bg) !important;
+            border: 1px solid var(--card-border) !important;
+            color: #ffffff !important;
+            font-size: 0.9rem;
+            min-width: 150px;
+        }
+        
+        .sort-filter:focus {
+            background: var(--card-bg) !important;
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+            color: #ffffff !important;
+        }
+        
+        .sort-filter option {
+            background: #1a1a1a;
+            color: #ffffff;
+        }
+        
         @media (max-width: 768px) {
             .hero-title {
                 font-size: 2rem;
@@ -495,6 +588,21 @@
             .image-grid {
                 grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
                 gap: 1.5rem;
+            }
+            
+            .profile-meta {
+                margin-bottom: 2rem;
+            }
+            
+            .sort-section {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.25rem;
+                margin-top: 1rem;
+            }
+            
+            .sort-filter {
+                width: 100% !important;
             }
         }
     </style>

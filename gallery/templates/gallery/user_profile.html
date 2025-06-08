@@ -6,54 +6,71 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="profile-header p-4 rounded-3" style="background: var(--card-bg); border: 1px solid var(--card-border);">
-                <div class="row align-items-center">
+                <!-- Main Profile Info -->
+                <div class="row align-items-start mb-4">
                     <div class="col-md-8">
-                        <h1 class="profile-display-name mb-2">{{ profile.display_name|default:"Anonymous User" }}</h1>
-                        <p class="text-muted mb-2">
-                            <i class="fas fa-wallet me-2"></i>
-                            <code>{{ profile.wallet_address }}</code>
-                        </p>
-                        {% if profile.bio %}
-                            <p class="profile-bio mb-3">{{ profile.bio }}</p>
-                        {% endif %}
+                        <h1 class="profile-display-name mb-3">{{ profile.display_name|default:"Anonymous User" }}</h1>
                         
-                        <div class="social-links">
-                            {% if profile.website %}
-                                <a href="{{ profile.website }}" target="_blank" class="profile-website btn btn-sm btn-outline-primary me-2">
-                                    <i class="fas fa-globe"></i> Website
-                                </a>
-                            {% endif %}
-                            {% if profile.twitter_handle %}
-                                <a href="https://twitter.com/{{ profile.twitter_handle }}" target="_blank" class="profile-twitter btn btn-sm btn-outline-info">
-                                    <i class="fab fa-twitter"></i> @{{ profile.twitter_handle }}
-                                </a>
+                        <div class="profile-meta mb-3">
+                            <div class="wallet-address-container mb-2">
+                                <i class="fas fa-wallet me-2 text-muted"></i>
+                                <code class="wallet-address-text">{{ profile.wallet_address }}</code>
+                            </div>
+                            
+                            {% if profile.bio %}
+                                <div class="profile-bio mb-3">
+                                    <i class="fas fa-info-circle me-2 text-muted"></i>
+                                    {{ profile.bio }}
+                                </div>
                             {% endif %}
                         </div>
+                        
+                        {% if profile.website or profile.twitter_handle %}
+                            <div class="social-links">
+                                {% if profile.website %}
+                                    <a href="{{ profile.website }}" target="_blank" class="profile-website btn btn-sm btn-outline-primary me-2">
+                                        <i class="fas fa-globe"></i> Website
+                                    </a>
+                                {% endif %}
+                                {% if profile.twitter_handle %}
+                                    <a href="https://twitter.com/{{ profile.twitter_handle }}" target="_blank" class="profile-twitter btn btn-sm btn-outline-info">
+                                        <i class="fab fa-twitter"></i> @{{ profile.twitter_handle }}
+                                    </a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
                     </div>
                     
                     <div class="col-md-4 text-md-end">
-                        <div class="profile-stats">
-                            <div class="row text-center">
-                                <div class="col-4">
-                                    <h3 class="stats-number mb-0">{{ profile.total_images_created }}</h3>
-                                    <small class="stats-label">Images</small>
-                                </div>
-                                <div class="col-4">
-                                    <h3 class="stats-number mb-0">{{ profile.total_upvotes_received }}</h3>
-                                    <small class="stats-label">Upvotes</small>
-                                </div>
-                                <div class="col-4">
-                                    <h3 class="stats-number mb-0">{{ page_obj.paginator.count }}</h3>
-                                    <small class="stats-label">Total</small>
-                                </div>
-                            </div>
-                        </div>
-                        
                         {% if is_own_profile %}
-                            <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal">
                                 <i class="fas fa-edit"></i> Edit Profile
                             </button>
                         {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Stats Section -->
+                <div class="profile-stats-container">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="stat-card text-center p-3 rounded-2" style="background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.2);">
+                                <h3 class="stats-number mb-1" style="color: #667eea;">{{ profile.total_images_created }}</h3>
+                                <small class="stats-label">Images Created</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card text-center p-3 rounded-2" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2);">
+                                <h3 class="stats-number mb-1" style="color: #ef4444;">{{ profile.total_upvotes_received }}</h3>
+                                <small class="stats-label">Upvotes Received</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card text-center p-3 rounded-2" style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2);">
+                                <h3 class="stats-number mb-1" style="color: #22c55e;">{{ page_obj.paginator.count }}</h3>
+                                <small class="stats-label">Total Images</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -63,26 +80,37 @@
     <!-- User's Images -->
     <div class="row">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="mb-0">
-                    <i class="fas fa-images me-2"></i>
-                    {% if is_own_profile %}Your Images{% else %}{{ profile.display_name|default:"User" }}'s Images{% endif %}
-                </h2>
-                
-                <!-- Sort Dropdown -->
-                {% if page_obj %}
-                <div class="sort-section">
-                    <form method="get" id="sort-form" class="d-inline">
-                        {% if request.GET.page %}<input type="hidden" name="page" value="{{ request.GET.page }}">{% endif %}
-                        <select name="sort" class="sort-filter" onchange="document.getElementById('sort-form').submit();">
-                            <option value="upvotes" {% if sort_by == 'upvotes' %}selected{% endif %}>Most Upvoted</option>
-                            <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
-                            <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest</option>
-                            <option value="comments" {% if sort_by == 'comments' %}selected{% endif %}>Most Commented</option>
-                        </select>
-                    </form>
+            <!-- Section Header -->
+            <div class="images-section-header mb-4 p-3 rounded-3" style="background: var(--card-bg); border: 1px solid var(--card-border);">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h2 class="mb-0">
+                            <i class="fas fa-images me-2"></i>
+                            {% if is_own_profile %}Your Images{% else %}{{ profile.display_name|default:"User" }}'s Images{% endif %}
+                        </h2>
+                        {% if page_obj %}
+                            <small class="text-muted">{{ page_obj.paginator.count }} total image{{ page_obj.paginator.count|pluralize }}</small>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Sort Dropdown -->
+                    {% if page_obj %}
+                    <div class="col-md-4 text-md-end">
+                        <div class="sort-section">
+                            <label class="form-label me-2 mb-0 text-muted small">Sort by:</label>
+                            <form method="get" id="sort-form" class="d-inline">
+                                {% if request.GET.page %}<input type="hidden" name="page" value="{{ request.GET.page }}">{% endif %}
+                                <select name="sort" class="form-select form-select-sm sort-filter" style="width: auto; display: inline-block;" onchange="document.getElementById('sort-form').submit();">
+                                    <option value="upvotes" {% if sort_by == 'upvotes' %}selected{% endif %}>Most Upvoted</option>
+                                    <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
+                                    <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest</option>
+                                    <option value="comments" {% if sort_by == 'comments' %}selected{% endif %}>Most Commented</option>
+                                </select>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
             
             {% if page_obj %}
