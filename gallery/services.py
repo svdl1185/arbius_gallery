@@ -140,8 +140,6 @@ class ArbitrumScanner:
         try:
             # TaskSubmitted event structure: TaskSubmitted(bytes32 indexed taskid, address indexed submitter, bytes32 indexed model, uint256 fee, bytes input)
             task_id = log['topics'][1] if len(log['topics']) > 1 else None
-            submitter = '0x' + log['topics'][2][-40:] if len(log['topics']) > 2 else None  # Get address from topic
-            model_id = log['topics'][3] if len(log['topics']) > 3 else None
             
             # Parse the data for fee (the event data only contains fee, not the input)
             data = log['data'][2:]  # Remove '0x' prefix
@@ -150,13 +148,15 @@ class ArbitrumScanner:
             fee_hex = data[:64] if len(data) >= 64 else '0'
             fee = int(fee_hex, 16) if fee_hex != '0' else 0
             
-            # For the input data, we need to get it from the original transaction
+            # Initialize defaults
+            submitter = None
+            model_id = None
             input_data = None
             prompt = None
             input_parameters = None
             
             try:
-                # Get the transaction data to extract the input parameter
+                # Get the transaction data to extract the correct parameters
                 self._rate_limit()
                 response = requests.get(f"https://api.arbiscan.io/api?module=proxy&action=eth_getTransactionByHash&txhash={log['transactionHash']}&apikey={self.api_key}")
                 if response.status_code == 200:
@@ -170,14 +170,22 @@ class ArbitrumScanner:
                         
                         tx_input = tx_data['result']['input']
                         
-                        # Parse the transaction input to extract the task input parameter
+                        # Parse the transaction input to extract ALL task parameters properly
                         if tx_input.startswith('0x') and len(tx_input) > 10:
                             param_data = tx_input[10:]  # Remove function signature
                             
                             # For submitTask, parameters are: version, owner, model, fee, input
-                            # The input parameter is at offset specified in the 5th parameter
                             if len(param_data) >= 320:  # At least 5*64 chars
+                                # Parse the owner (submitter) and model from transaction input
+                                version_hex = param_data[0:64]
+                                owner_hex = param_data[64:128]
+                                model_hex = param_data[128:192]
+                                fee_hex_tx = param_data[192:256]
                                 input_offset_hex = param_data[256:320]  # 5th parameter (input offset)
+                                
+                                # Extract submitter (owner) and model_id correctly
+                                submitter = "0x" + owner_hex[-40:]  # Last 20 bytes as address
+                                model_id = "0x" + model_hex
                                 
                                 try:
                                     offset = int(input_offset_hex, 16) * 2  # Convert to hex chars
@@ -209,6 +217,9 @@ class ArbitrumScanner:
                             
             except Exception as e:
                 logger.warning(f"Could not get transaction data for task {task_id}: {e}")
+                # Fallback to event topics if transaction parsing fails (less reliable)
+                submitter = '0x' + log['topics'][2][-40:] if len(log['topics']) > 2 else None
+                model_id = log['topics'][3] if len(log['topics']) > 3 else None
             
             return {
                 'task_id': task_id,
