@@ -4,6 +4,14 @@ from django.utils.deprecation import MiddlewareMixin
 from .models import UserProfile
 
 
+def get_display_name_for_wallet(wallet_address):
+    """Get appropriate display name for a wallet address"""
+    if wallet_address.lower() == '0x708816d665eb09e5a86ba82a774dabb550bc8af5':
+        return "Arbius Telegram Bot"
+    else:
+        return f"User {wallet_address[:8]}..."
+
+
 class Web3AuthMiddleware(MiddlewareMixin):
     """Middleware to handle Web3 wallet authentication"""
     
@@ -21,7 +29,7 @@ class Web3AuthMiddleware(MiddlewareMixin):
             try:
                 profile, created = UserProfile.objects.get_or_create(
                     wallet_address=wallet_address,
-                    defaults={'display_name': f"User {wallet_address[:8]}..."}
+                    defaults={'display_name': get_display_name_for_wallet(wallet_address)}
                 )
                 request.user_profile = profile
                 request.is_authenticated = True
