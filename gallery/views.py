@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
 from django.db.models import Q, Count, Case, When, IntegerField, Exists, OuterRef
@@ -439,7 +439,25 @@ def add_comment(request, image_id):
 
 def user_profile(request, wallet_address):
     """Display user profile page"""
-    profile = get_object_or_404(UserProfile, wallet_address__iexact=wallet_address)
+    
+    # Try to get existing profile, or create one if the wallet has images
+    try:
+        profile = UserProfile.objects.get(wallet_address__iexact=wallet_address)
+    except UserProfile.DoesNotExist:
+        # Check if this wallet has created any images
+        has_images = get_base_queryset().filter(task_submitter__iexact=wallet_address).exists()
+        
+        if has_images:
+            # Auto-create a basic profile for wallets that have created images
+            profile = UserProfile.objects.create(
+                wallet_address=wallet_address.lower(),
+                display_name=f"User {wallet_address[:8]}..."
+            )
+            # Update stats for the new profile
+            profile.update_stats()
+        else:
+            # No images and no profile - this wallet doesn't exist in our system
+            raise Http404("This wallet address has not created any images in the gallery.")
     
     # Get sort parameter
     sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
