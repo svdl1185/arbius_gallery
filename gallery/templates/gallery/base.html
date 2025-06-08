@@ -444,19 +444,42 @@
                     </li>
                     
                     <!-- Web3 Authentication -->
-                    <li class="nav-item me-2">
-                        <span id="wallet-info" class="wallet-info">
-                            <!-- Populated by JavaScript -->
-                        </span>
-                    </li>
-                    <li class="nav-item me-2">
-                        <button id="connect-wallet-btn" class="btn wallet-connect-btn">
-                            <i class="fas fa-wallet"></i> Connect Wallet
-                        </button>
-                        <button id="disconnect-wallet-btn" class="btn btn-outline-secondary btn-sm" style="display: none;">
-                            <i class="fas fa-sign-out-alt"></i> Disconnect
-                        </button>
-                    </li>
+                    {% if wallet_address %}
+                        <!-- Connected State -->
+                        <li class="nav-item me-2">
+                            <a href="{% url 'gallery:user_profile' wallet_address %}" class="nav-link">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                        </li>
+                        <li class="nav-item me-2">
+                            <span id="wallet-info" class="wallet-info" style="display: inline-block;">
+                                <span class="wallet-address">{{ wallet_address|slice:":6" }}...{{ wallet_address|slice:"-4:" }}</span>
+                            </span>
+                        </li>
+                        <li class="nav-item me-2">
+                            <button id="connect-wallet-btn" class="btn wallet-connect-btn" style="display: none;">
+                                <i class="fas fa-wallet"></i> Connect Wallet
+                            </button>
+                            <button id="disconnect-wallet-btn" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-sign-out-alt"></i> Disconnect
+                            </button>
+                        </li>
+                    {% else %}
+                        <!-- Disconnected State -->
+                        <li class="nav-item me-2">
+                            <span id="wallet-info" class="wallet-info" style="display: none;">
+                                <!-- Populated by JavaScript -->
+                            </span>
+                        </li>
+                        <li class="nav-item me-2">
+                            <button id="connect-wallet-btn" class="btn wallet-connect-btn">
+                                <i class="fas fa-wallet"></i> Connect Wallet
+                            </button>
+                            <button id="disconnect-wallet-btn" class="btn btn-outline-secondary btn-sm" style="display: none;">
+                                <i class="fas fa-sign-out-alt"></i> Disconnect
+                            </button>
+                        </li>
+                    {% endif %}
                     
                     <li class="nav-item">
                         <a class="telegram-btn" href="https://t.me/+jILwOBI70xsxYTM9" target="_blank">

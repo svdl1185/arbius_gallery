@@ -12,10 +12,22 @@ class Web3Auth {
     }
 
     async init() {
-        // Check if user is already connected
-        this.checkExistingConnection();
-        this.setupEventListeners();
-        this.updateUI();
+        await this.setupEventListeners();
+        
+        // Check server-side state first
+        const walletInfo = document.getElementById('wallet-info');
+        const isServerConnected = walletInfo && walletInfo.style.display !== 'none' && walletInfo.textContent.trim();
+        
+        if (isServerConnected) {
+            // Server says we're connected, sync client state
+            this.isConnected = true;
+            const addressText = walletInfo.textContent.trim();
+            // Don't override server state, just mark as connected
+            this.checkExistingConnection();
+        } else {
+            // Check for stored wallet connection
+            this.checkExistingConnection();
+        }
     }
 
     checkExistingConnection() {
@@ -156,11 +168,15 @@ class Web3Auth {
         const disconnectBtn = document.getElementById('disconnect-wallet-btn');
         const walletInfo = document.getElementById('wallet-info');
 
+        // Check if server already rendered connected state
+        const isServerConnected = walletInfo && walletInfo.style.display !== 'none' && walletInfo.textContent.trim();
+
         if (this.isConnected && this.walletAddress) {
             if (connectBtn) connectBtn.style.display = 'none';
             if (disconnectBtn) disconnectBtn.style.display = 'inline-block';
             
-            if (walletInfo) {
+            // Only update wallet info if server hasn't already rendered it
+            if (walletInfo && !isServerConnected) {
                 walletInfo.innerHTML = `
                     <span class="wallet-address">
                         ${this.formatAddress(this.walletAddress)}
@@ -174,7 +190,11 @@ class Web3Auth {
         } else {
             if (connectBtn) connectBtn.style.display = 'inline-block';
             if (disconnectBtn) disconnectBtn.style.display = 'none';
-            if (walletInfo) walletInfo.style.display = 'none';
+            
+            // Only hide wallet info if we're sure we're disconnected
+            if (walletInfo && !isServerConnected) {
+                walletInfo.style.display = 'none';
+            }
 
             // Hide authenticated features
             this.hideAuthenticatedFeatures();
