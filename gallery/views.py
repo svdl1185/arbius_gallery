@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
-from django.db.models import Q, Count, Case, When, IntegerField
+from django.db.models import Q, Count, Case, When, IntegerField, Exists, OuterRef
 from django.db.models.functions import Length
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -39,6 +39,23 @@ def get_base_queryset():
     )
     
     return queryset
+
+
+def annotate_upvote_status(queryset, wallet_address):
+    """Annotate queryset with upvote status for the given wallet address"""
+    if not wallet_address:
+        # If no wallet address, just add a False annotation
+        return queryset.annotate(user_has_upvoted=Case(When(id__isnull=True, then=False), default=False, output_field=IntegerField()))
+    
+    # Annotate with whether the current user has upvoted each image
+    return queryset.annotate(
+        user_has_upvoted=Exists(
+            ImageUpvote.objects.filter(
+                image=OuterRef('pk'),
+                wallet_address__iexact=wallet_address
+            )
+        )
+    )
 
 
 def get_available_models_with_categories():
@@ -81,6 +98,9 @@ def index(request):
     selected_model = request.GET.get('model', '').strip()
     sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
     
+    # Get current user's wallet address
+    current_wallet_address = getattr(request, 'wallet_address', None)
+    
     # Base queryset - now includes comprehensive filtering
     images = get_base_queryset()
     
@@ -112,6 +132,9 @@ def index(request):
         # Default fallback to most upvoted
         images = images.annotate(upvote_count_db=Count('upvotes')).order_by('-upvote_count_db', '-timestamp')
     
+    # Annotate with upvote status for current user
+    images = annotate_upvote_status(images, current_wallet_address)
+    
     # Get available models with improved categorization
     available_models, model_categories = get_available_models_with_categories()
     
@@ -129,7 +152,7 @@ def index(request):
         'available_models': available_models,
         'model_categories': model_categories,
         'total_images': ArbiusImage.objects.filter(is_accessible=True).count(),  # Use filtered count
-        'wallet_address': getattr(request, 'wallet_address', None),
+        'wallet_address': current_wallet_address,
         'user_profile': getattr(request, 'user_profile', None),
     }
     return render(request, 'gallery/index.html', context)
@@ -142,6 +165,9 @@ def search(request):
     selected_task_submitter = request.GET.get('task_submitter', '').strip()
     selected_model = request.GET.get('model', '').strip()
     sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
+    
+    # Get current user's wallet address
+    current_wallet_address = getattr(request, 'wallet_address', None)
     
     # Base queryset - now includes comprehensive filtering
     images = get_base_queryset()
@@ -174,6 +200,9 @@ def search(request):
         # Default fallback to most upvoted
         images = images.annotate(upvote_count_db=Count('upvotes')).order_by('-upvote_count_db', '-timestamp')
     
+    # Annotate with upvote status for current user
+    images = annotate_upvote_status(images, current_wallet_address)
+    
     # Get available models with improved categorization
     available_models, model_categories = get_available_models_with_categories()
     
@@ -190,7 +219,7 @@ def search(request):
         'sort_by': sort_by,
         'available_models': available_models,
         'model_categories': model_categories,
-        'wallet_address': getattr(request, 'wallet_address', None),
+        'wallet_address': current_wallet_address,
         'user_profile': getattr(request, 'user_profile', None),
     }
     return render(request, 'gallery/search.html', context)
@@ -415,6 +444,9 @@ def user_profile(request, wallet_address):
     # Get sort parameter
     sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
     
+    # Get current user's wallet address
+    current_wallet_address = getattr(request, 'wallet_address', None)
+    
     # Get user's images with sorting
     user_images = get_base_queryset().filter(
         task_submitter__iexact=wallet_address
@@ -433,18 +465,19 @@ def user_profile(request, wallet_address):
         # Default fallback to most upvoted
         user_images = user_images.annotate(upvote_count_db=Count('upvotes')).order_by('-upvote_count_db', '-timestamp')
     
+    # Annotate with upvote status for current user
+    user_images = annotate_upvote_status(user_images, current_wallet_address)
+    
     # Pagination
     paginator = Paginator(user_images, 24)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     
     # Check if viewing own profile (only if user is authenticated)
-    is_own_profile = (hasattr(request, 'wallet_address') and 
-                     request.wallet_address and 
-                     request.wallet_address.lower() == wallet_address.lower())
+    is_own_profile = (current_wallet_address and 
+                     current_wallet_address.lower() == wallet_address.lower())
     
-    # Get current user's wallet address and profile (may be None for visitors)
-    current_wallet_address = getattr(request, 'wallet_address', None)
+    # Get current user's profile (may be None for visitors)
     current_user_profile = getattr(request, 'user_profile', None)
     
     context = {

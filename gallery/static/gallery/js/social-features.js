@@ -97,7 +97,7 @@ class SocialFeatures {
                     const heartIcon = button.querySelector('i');
                     if (data.upvoted) {
                         button.classList.add('upvoted');
-                        heartIcon.className = 'fas fa-heart text-danger';
+                        heartIcon.className = 'fas fa-heart';
                     } else {
                         button.classList.remove('upvoted');
                         heartIcon.className = 'fas fa-heart text-danger';
