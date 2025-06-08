@@ -93,6 +93,28 @@
             color: white !important;
         }
         
+        .wallet-disconnect-btn {
+            background: rgba(220, 53, 69, 0.1) !important;
+            border: 1px solid rgba(220, 53, 69, 0.3) !important;
+            color: #dc3545 !important;
+            font-weight: 500 !important;
+            padding: 8px 16px !important;
+            border-radius: 25px !important;
+            transition: all 0.3s ease !important;
+            text-decoration: none !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            font-size: 0.9rem !important;
+        }
+        
+        .wallet-disconnect-btn:hover {
+            background: rgba(220, 53, 69, 0.2) !important;
+            border-color: #dc3545 !important;
+            color: #dc3545 !important;
+            transform: translateY(-1px) !important;
+        }
+        
         .wallet-info {
             color: var(--text-muted);
             font-size: 0.9rem;
@@ -452,7 +474,7 @@
                             </a>
                         </li>
                         <li class="nav-item me-2">
-                            <button id="disconnect-wallet-btn" class="btn btn-outline-secondary btn-sm">
+                            <button id="disconnect-wallet-btn" class="btn wallet-disconnect-btn">
                                 <i class="fas fa-sign-out-alt"></i> Disconnect
                             </button>
                         </li>
@@ -480,7 +502,7 @@
                             </a>
                         </li>
                         <li class="nav-item me-2" style="display: none;">
-                            <button id="disconnect-wallet-btn" class="btn btn-outline-secondary btn-sm" style="display: none;">
+                            <button id="disconnect-wallet-btn" class="btn wallet-disconnect-btn" style="display: none;">
                                 <i class="fas fa-sign-out-alt"></i> Disconnect
                             </button>
                         </li>

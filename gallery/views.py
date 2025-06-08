@@ -16,30 +16,14 @@ from .middleware import require_wallet_auth
 def get_base_queryset():
     """Get the base queryset for images with optimizations and filtering"""
     
-    queryset = ArbiusImage.objects.select_related().prefetch_related('upvotes', 'comments').filter(
-        is_accessible=True  # Only show accessible images
-    )
-    
-    # Apply blacklist approach - exclude known bad models instead of restrictive whitelist
-    EXCLUDED_MODELS = [
-        # All-zero models (test models)
-        '0x0000000000000000000000000000000000000000',
-        '0x0000000000000000000000000000000000000001', 
-        '0x0000000000000000000000000000000000000002',
-        '0x0000000000000000000000000000000000000003',
-        # Known text/test models
-        '0x89c39001e3b23d2095a1d59cb8c02c3eeb74d83a',  # Text model
-        '0x6cb3eed9fe3f32da1',  # Test model
-        # Add other problematic model patterns
+    # Only allow the main image model - be very restrictive
+    ALLOWED_MODELS = [
+        '0xa473c70e9d7c872ac948d20546bc79db55fa64ca325a4b229aaffddb7f86aae0',  # Main image model only
     ]
     
-    queryset = queryset.exclude(model_id__in=EXCLUDED_MODELS)
-    
-    # Also exclude models that match problematic patterns
-    queryset = queryset.exclude(
-        # Models that are mostly zeros
-        Q(model_id__regex=r'^0x0{20,}.*') |  # 20+ consecutive zeros after 0x
-        Q(model_id__regex=r'^0x.*0{20,}$')   # 20+ consecutive zeros at end
+    queryset = ArbiusImage.objects.select_related().prefetch_related('upvotes', 'comments').filter(
+        is_accessible=True,  # Only show accessible images
+        model_id__in=ALLOWED_MODELS  # Only allow whitelisted models
     )
     
     # Additional content filtering for extra safety
@@ -58,75 +42,35 @@ def get_base_queryset():
 
 
 def get_available_models_with_categories():
-    """Get available models organized by categories with comprehensive filtering"""
+    """Get available models organized by categories with restrictive filtering"""
     
-    # Get all model stats from the base queryset (which already excludes bad models)
+    # Only allow the main image model
+    ALLOWED_MODELS = [
+        '0xa473c70e9d7c872ac948d20546bc79db55fa64ca325a4b229aaffddb7f86aae0',  # Main image model only
+    ]
+    
+    # Get model stats only for allowed models
     all_models = ArbiusImage.objects.values('model_id').annotate(
         count=Count('id')
     ).filter(
-        model_id__isnull=False
-    ).exclude(
-        model_id=''
+        model_id__in=ALLOWED_MODELS,
+        is_accessible=True
     ).order_by('-count')
     
-    # Apply the same exclusions as base queryset
-    EXCLUDED_MODELS = [
-        '0x0000000000000000000000000000000000000000',
-        '0x0000000000000000000000000000000000000001', 
-        '0x0000000000000000000000000000000000000002',
-        '0x0000000000000000000000000000000000000003',
-        '0x89c39001e3b23d2095a1d59cb8c02c3eeb74d83a',  # Text model
-        '0x6cb3eed9fe3f32da1',  # Test model
-    ]
-    
+    # Format the allowed models
     filtered_models = []
     for model in all_models:
-        model_id = model['model_id']
-        
-        # Skip excluded models
-        if model_id in EXCLUDED_MODELS:
-            continue
-            
-        # Skip models with problematic patterns
-        if model_id.startswith('0x') and len(model_id) > 22:
-            hex_part = model_id[2:]  # Remove 0x
-            # Skip if mostly zeros
-            if hex_part.count('0') > len(hex_part) * 0.8:  # More than 80% zeros
-                continue
-        
-        filtered_models.append(model)
-    
-    # Define model categories (only confirmed good ones)
-    MODEL_CATEGORIES = {
-        'Popular Models': [
-            '0xa473c70e9d7c872ac948d20546bc79db55fa64ca325a4b229aaffddb7f86aae0',  # Only confirmed good model
-        ],
-    }
-    
-    # Separate models into categories
-    categorized = {'Popular': [], 'Other': []}
-    popular_model_ids = MODEL_CATEGORIES.get('Popular Models', [])
-    
-    for model in filtered_models:
         model_info = {
             'model_id': model['model_id'],
             'count': model['count'],
             'short_name': f"{model['model_id'][:8]}...{model['model_id'][-8:]}" if len(model['model_id']) > 16 else model['model_id']
         }
-        
-        if model['model_id'] in popular_model_ids:
-            categorized['Popular'].append(model_info)
-        else:
-            categorized['Other'].append(model_info)
+        filtered_models.append(model_info)
     
-    # Sort each category by count
-    for category in categorized:
-        categorized[category] = sorted(categorized[category], key=lambda x: x['count'], reverse=True)
+    # Simple categorization - all allowed models go to "Available"
+    categorized = {'Available': filtered_models, 'Other': []}
     
-    # Flatten for backward compatibility
-    flattened = categorized['Popular'] + categorized['Other']
-    
-    return flattened, categorized
+    return filtered_models, categorized
 
 
 def index(request):
