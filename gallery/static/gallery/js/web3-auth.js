@@ -346,34 +346,47 @@ class Web3Auth {
         // Update connect/disconnect buttons
         const connectBtn = document.getElementById('connect-wallet-btn');
         const disconnectBtn = document.getElementById('disconnect-wallet-btn');
+        const profileLink = document.getElementById('profile-link');
         const walletInfo = document.getElementById('wallet-info');
 
         // Check if server already rendered connected state
-        const isServerConnected = walletInfo && walletInfo.style.display !== 'none' && walletInfo.textContent.trim();
+        const isServerConnected = disconnectBtn && disconnectBtn.style.display !== 'none' && disconnectBtn.offsetParent !== null;
 
         if (this.isConnected && this.walletAddress) {
-            if (connectBtn) connectBtn.style.display = 'none';
-            if (disconnectBtn) disconnectBtn.style.display = 'inline-block';
-            
-            // Only update wallet info if server hasn't already rendered it
-            if (walletInfo && !isServerConnected) {
-                walletInfo.innerHTML = `
-                    <span class="wallet-address">
-                        ${this.formatAddress(this.walletAddress)}
-                    </span>
-                `;
-                walletInfo.style.display = 'inline-block';
+            // Only update if server hasn't already rendered the connected state
+            if (!isServerConnected) {
+                if (connectBtn) {
+                    connectBtn.style.display = 'none';
+                    connectBtn.parentElement.style.display = 'none';
+                }
+                if (disconnectBtn) {
+                    disconnectBtn.style.display = 'inline-block';
+                    disconnectBtn.parentElement.style.display = 'block';
+                }
+                if (profileLink) {
+                    profileLink.href = `/gallery/profile/${this.walletAddress}/`;
+                    profileLink.style.display = 'inline-block';
+                    profileLink.parentElement.style.display = 'block';
+                }
             }
 
             // Show authenticated features
             this.showAuthenticatedFeatures();
         } else {
-            if (connectBtn) connectBtn.style.display = 'inline-block';
-            if (disconnectBtn) disconnectBtn.style.display = 'none';
-            
-            // Only hide wallet info if we're sure we're disconnected
-            if (walletInfo && !isServerConnected) {
-                walletInfo.style.display = 'none';
+            // Only update if we're sure we're disconnected and server hasn't rendered connected state
+            if (!isServerConnected) {
+                if (connectBtn) {
+                    connectBtn.style.display = 'inline-block';
+                    connectBtn.parentElement.style.display = 'block';
+                }
+                if (disconnectBtn) {
+                    disconnectBtn.style.display = 'none';
+                    disconnectBtn.parentElement.style.display = 'none';
+                }
+                if (profileLink) {
+                    profileLink.style.display = 'none';
+                    profileLink.parentElement.style.display = 'none';
+                }
             }
 
             // Hide authenticated features

@@ -452,32 +452,42 @@
                             </a>
                         </li>
                         <li class="nav-item me-2">
-                            <span id="wallet-info" class="wallet-info" style="display: inline-block;">
-                                <span class="wallet-address">{{ wallet_address|slice:":6" }}...{{ wallet_address|slice:"-4:" }}</span>
-                            </span>
-                        </li>
-                        <li class="nav-item me-2">
-                            <button id="connect-wallet-btn" class="btn wallet-connect-btn" style="display: none;">
-                                <i class="fas fa-wallet"></i> Connect Wallet
-                            </button>
                             <button id="disconnect-wallet-btn" class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-sign-out-alt"></i> Disconnect
                             </button>
                         </li>
-                    {% else %}
-                        <!-- Disconnected State -->
-                        <li class="nav-item me-2">
+                        <!-- Hidden elements for JS -->
+                        <li class="nav-item me-2" style="display: none;">
+                            <button id="connect-wallet-btn" class="btn wallet-connect-btn" style="display: none;">
+                                <i class="fas fa-wallet"></i> Connect Wallet
+                            </button>
+                        </li>
+                        <li class="nav-item me-2" style="display: none;">
                             <span id="wallet-info" class="wallet-info" style="display: none;">
-                                <!-- Populated by JavaScript -->
+                                <!-- Populated by JavaScript if needed -->
                             </span>
                         </li>
+                    {% else %}
+                        <!-- Disconnected State -->
                         <li class="nav-item me-2">
                             <button id="connect-wallet-btn" class="btn wallet-connect-btn">
                                 <i class="fas fa-wallet"></i> Connect Wallet
                             </button>
+                        </li>
+                        <li class="nav-item me-2" style="display: none;">
+                            <a href="#" class="nav-link" id="profile-link" style="display: none;">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                        </li>
+                        <li class="nav-item me-2" style="display: none;">
                             <button id="disconnect-wallet-btn" class="btn btn-outline-secondary btn-sm" style="display: none;">
                                 <i class="fas fa-sign-out-alt"></i> Disconnect
                             </button>
+                        </li>
+                        <li class="nav-item me-2" style="display: none;">
+                            <span id="wallet-info" class="wallet-info" style="display: none;">
+                                <!-- Populated by JavaScript -->
+                            </span>
                         </li>
                     {% endif %}
                     
