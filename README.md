@@ -1,179 +1,402 @@
 # 🎨 Arbius Gallery
 
-A beautiful web gallery for AI-generated images from the Arbius network on Arbitrum. This Django application scans the blockchain for `submitSolution` transactions and displays the resulting AI artwork.
+A beautiful Web3 social gallery for AI-generated images from the Arbius decentralized network on Arbitrum. This Django application features wallet authentication, social interactions, and comprehensive blockchain scanning.
 
-## ✨ Features
+## 🌟 Key Features
 
-- **🔍 Automatic Blockchain Scanning**: Continuously monitors Arbitrum for new Arbius images
-- **🎯 Smart CID Extraction**: Decodes IPFS content identifiers from transaction data
-- **🖼️ Beautiful Gallery Interface**: Modern, responsive design with dark theme
-- **⚡ Real-time Updates**: Shows latest AI-generated images as they're created
-- **📱 Mobile Responsive**: Works perfectly on all devices
-- **🚀 One-click Heroku Deployment**: Easy deployment with automated setup
+### 🖼️ **AI Image Gallery**
+- **Automatic Blockchain Scanning**: Continuously monitors Arbitrum for new Arbius images
+- **Smart Content Filtering**: Only displays high-quality images from whitelisted models
+- **IPFS Integration**: Displays images stored permanently on IPFS
+- **Advanced Search & Filtering**: Search by prompt, model, creator, or transaction
+- **Multiple Sorting Options**: Sort by upvotes, comments, newest, or oldest
 
-## 🚀 Quick Start with Heroku
+### 🔐 **Web3 Authentication**
+- **MetaMask Integration**: Connect with popular Web3 wallets
+- **Signature-based Authentication**: Secure wallet-based login system
+- **Persistent Sessions**: Remembers wallet connections across browser sessions
+- **Auto-profile Creation**: Automatic profile generation for wallet holders
 
+### 👥 **Social Features**
+- **Upvote System**: Like your favorite AI creations (wallet required)
+- **Comment System**: Discuss images with the community (wallet required)
+- **User Profiles**: Public profiles for all creators showing stats and images
+- **Creator Statistics**: Track images created, upvotes received, and engagement
+- **Public Profile Access**: View any creator's profile without connecting wallet
+
+### 📊 **Analytics & Statistics**
+- **Live Statistics Dashboard**: Real-time network analytics and charts
+- **Image Generation Trends**: Daily and cumulative creation charts
+- **Creator Leaderboards**: Top contributors and their statistics
+- **Model Analytics**: Usage statistics for different AI models
+- **Community Metrics**: Total upvotes, comments, and active users
+
+### 🎯 **Special Features**
+- **Telegram Bot Integration**: Special naming for Arbius Telegram Bot images
+- **Upvote Status Indicators**: Visual feedback showing which images you've upvoted
+- **Responsive Design**: Perfect experience on mobile, tablet, and desktop
+- **Dark Theme**: Easy on the eyes with beautiful gradients
+- **Real-time Updates**: Live data updates and statistics
+
+## 🚀 Quick Deployment
+
+### One-Click Heroku Deployment
 1. **Clone and Deploy**:
    ```bash
-   git clone [your-repo-url]
+   git clone https://github.com/svdl1185/arbius_gallery.git
    cd arbius_gallery
    ./deploy.sh
    ```
 
-2. **Set up 1-minute scanning**:
+2. **Set up Continuous Scanning**:
    ```bash
    ./setup_github.sh
    ```
 
-## 🔄 Scanning Options
+## 🛠️ Local Development Setup
 
-### Heroku Scheduler (10-minute intervals)
-Heroku's built-in scheduler supports minimum 10-minute intervals:
-1. Run: `heroku addons:open scheduler --app your-app-name`
-2. Add job: `python3 manage.py scan_arbius --blocks 100 --quiet`
-
-### GitHub Actions (1-minute intervals)
-For more frequent scanning, use the included GitHub Actions workflow:
-1. Push your code to GitHub
-2. Add repository secrets:
-   - `HEROKU_API_KEY`: Your Heroku API token
-   - `HEROKU_APP_NAME`: Your Heroku app name
-3. The workflow will automatically scan every minute!
-
-## 🛠️ Manual Development Setup
-
-1. **Create virtual environment**:
+1. **Environment Setup**:
    ```bash
    python -m venv arbius_env
-   source arbius_env/bin/activate  # On Windows: arbius_env\Scripts\activate
-   ```
-
-2. **Install dependencies**:
-   ```bash
+   source arbius_env/bin/activate  # Windows: arbius_env\Scripts\activate
    pip install -r requirements.txt
    ```
 
-3. **Set up database**:
+2. **Database Configuration**:
    ```bash
    python manage.py migrate
+   python manage.py createsuperuser  # Optional: for admin access
    ```
 
-4. **Run development server**:
+3. **Start Development Server**:
    ```bash
    python manage.py runserver
    ```
 
-5. **Scan for images**:
+4. **Initial Data Scan**:
    ```bash
-   # Scan recent blocks
-   python manage.py scan_arbius --blocks 100
-   
-   # Quiet mode for automation
-   python manage.py scan_arbius --blocks 100 --quiet
+   python manage.py scan_arbius --blocks 1000
    ```
-
-## 📊 How It Works
-
-1. **Blockchain Monitoring**: Scans Arbitrum blocks for `submitSolution` transactions
-2. **Transaction Analysis**: Extracts solution data from contract interactions
-3. **CID Decoding**: Decodes IPFS content identifiers using base58 encoding
-4. **Image Verification**: Checks IPFS accessibility and caches metadata
-5. **Gallery Display**: Shows images in a beautiful, responsive interface
 
 ## 🔧 Configuration
 
 ### Environment Variables
-- `SECRET_KEY`: Django secret key
-- `DEBUG`: Set to `False` in production
-- `ALLOWED_HOSTS`: Comma-separated list of allowed hosts
-- `DATABASE_URL`: PostgreSQL URL (auto-configured on Heroku)
 
-### Blockchain Settings
-- `ARBISCAN_API_KEY`: API key for Arbiscan
-- `ENGINE_CONTRACT_ADDRESS`: Arbius engine contract
-- `ROUTER_CONTRACT_ADDRESS`: Arbius router contract
-- `ARBITRUM_RPC_URL`: Arbitrum RPC endpoint
-- `IPFS_BASE_URL`: IPFS gateway URL
+#### **Required for Production**
+```bash
+SECRET_KEY=your-django-secret-key
+DEBUG=False
+ALLOWED_HOSTS=your-domain.com,www.your-domain.com
+DATABASE_URL=postgresql://username:password@host:port/database
+```
 
-## 📁 Project Structure
+#### **Blockchain Configuration**
+```bash
+ARBISCAN_API_KEY=your-arbiscan-api-key
+ENGINE_CONTRACT_ADDRESS=0x...
+ROUTER_CONTRACT_ADDRESS=0x...
+ARBITRUM_RPC_URL=https://arb1.arbitrum.io/rpc
+IPFS_BASE_URL=https://gateway.pinata.cloud/ipfs/
+```
 
+#### **Social Features**
+```bash
+# These are handled automatically by the application
+ENABLE_SOCIAL_FEATURES=True  # Default: True
+REQUIRE_WALLET_FOR_VIEWING=False  # Public viewing enabled
+```
+
+## 🏗️ Architecture
+
+### **Backend Structure**
 ```
 arbius_gallery/
-├── gallery/                    # Main Django app
-│   ├── models.py              # Database models
-│   ├── views.py               # View logic
-│   ├── services.py            # Blockchain scanning logic
-│   ├── templates/             # HTML templates
-│   └── management/commands/   # Management commands
-├── static/                    # Static files (CSS, JS)
-├── .github/workflows/         # GitHub Actions
-├── deploy.sh                  # Heroku deployment script
-├── setup_github.sh           # GitHub setup script
-└── requirements.txt          # Python dependencies
+├── gallery/                      # Main Django application
+│   ├── models.py                 # Database models (ArbiusImage, UserProfile, etc.)
+│   ├── views.py                  # Web3 views, social features, gallery logic
+│   ├── services.py               # Blockchain scanning and IPFS integration
+│   ├── middleware.py             # Web3 authentication middleware
+│   ├── admin.py                  # Django admin configuration
+│   ├── urls.py                   # URL routing
+│   ├── templates/gallery/        # HTML templates
+│   │   ├── base.html            # Base layout with Web3 integration
+│   │   ├── index.html           # Main gallery page
+│   │   ├── image_detail.html    # Individual image view
+│   │   ├── user_profile.html    # User profile pages
+│   │   ├── search.html          # Search results
+│   │   └── info.html           # Statistics dashboard
+│   ├── static/gallery/          # Frontend assets
+│   │   ├── css/                # Stylesheets
+│   │   ├── js/                 # JavaScript (Web3, social features)
+│   │   └── images/             # Static images
+│   └── management/commands/     # Management commands
+│       ├── scan_arbius.py      # Blockchain scanning
+│       └── list_models.py      # Model analysis
+├── .github/workflows/           # CI/CD and automated scanning
+│   └── scheduled_scan.yml      # GitHub Actions for scanning
+├── static/                     # Collected static files
+├── deploy.sh                   # Heroku deployment script
+├── setup_github.sh            # GitHub Actions setup
+└── requirements.txt           # Python dependencies
+```
+
+### **Database Models**
+
+#### **ArbiusImage**
+```python
+- transaction_hash: Unique blockchain transaction
+- task_id: AI generation task identifier
+- cid: IPFS content identifier
+- model_id: AI model used for generation
+- prompt: Text prompt used for generation
+- task_submitter: Wallet address of image creator
+- solution_provider: Wallet address of miner
+- timestamp: Blockchain timestamp
+- upvote_count: Calculated upvotes
+- comment_count: Calculated comments
+```
+
+#### **UserProfile**
+```python
+- wallet_address: Ethereum wallet address (unique)
+- display_name: User-chosen display name
+- bio: User biography
+- website: Personal website URL
+- twitter_handle: Twitter handle
+- total_images_created: Calculated statistic
+- total_upvotes_received: Calculated statistic
+```
+
+#### **ImageUpvote & ImageComment**
+```python
+- Social interaction models linking wallets to images
+- Prevents duplicate votes per wallet
+- Tracks engagement timestamps
 ```
 
 ## 🔍 Management Commands
 
-### scan_arbius
-Scans the blockchain for new Arbius images:
+### **scan_arbius**
+Primary blockchain scanning command:
 ```bash
-python manage.py scan_arbius [--blocks N] [--quiet]
-```
+python manage.py scan_arbius [options]
 
 Options:
-- `--blocks N`: Number of recent blocks to scan (default: 100)
-- `--quiet`: Suppress output for automated runs
+  --blocks N        Number of recent blocks to scan (default: 100)
+  --quiet           Suppress output for automated runs
+  --force           Force rescan of existing blocks
+  --start-block N   Start scanning from specific block
+  --end-block N     End scanning at specific block
+```
 
-## 🚀 Deployment
+### **list_models**
+Analyze AI models in use:
+```bash
+python manage.py list_models
+# Shows model statistics and usage patterns
+```
 
-### Heroku (Recommended)
-1. Run the deployment script: `./deploy.sh`
-2. Set up scanning with either:
-   - Heroku Scheduler (10-min intervals)
-   - GitHub Actions (1-min intervals)
+## 🔄 Automated Scanning
 
-### Manual Deployment
-1. Set environment variables
-2. Run migrations: `python manage.py migrate`
-3. Collect static files: `python manage.py collectstatic`
-4. Set up scheduled scanning
+### **GitHub Actions (Recommended - 1-minute intervals)**
+1. Push code to GitHub repository
+2. Add repository secrets in GitHub Settings > Secrets:
+   - `HEROKU_API_KEY`: Your Heroku API token
+   - `HEROKU_APP_NAME`: Your Heroku application name
+3. Automatic scanning runs every minute via GitHub Actions
+
+### **Heroku Scheduler (10-minute intervals)**
+1. Install scheduler: `heroku addons:create scheduler:standard --app your-app-name`
+2. Open scheduler: `heroku addons:open scheduler --app your-app-name`
+3. Add job: `python manage.py scan_arbius --blocks 100 --quiet`
+
+## 🌐 Web3 Integration
+
+### **Wallet Connection Flow**
+1. User clicks "Connect Wallet" button
+2. MetaMask prompts for connection
+3. User signs authentication message
+4. Session established with wallet address
+5. Profile auto-created or retrieved
+6. Social features become available
+
+### **Social Interaction Flow**
+1. **Upvoting**: Click heart icon → MetaMask signature → Database update
+2. **Commenting**: Write comment → MetaMask signature → Comment stored
+3. **Profile Viewing**: Public access to any creator's profile and statistics
+
+### **Security Features**
+- Signature-based authentication prevents spoofing
+- Session management with secure tokens
+- Public data access without wallet requirement
+- Rate limiting on social actions
+
+## 📊 API Endpoints
+
+### **Public Endpoints (No Wallet Required)**
+```
+GET  /                          # Main gallery
+GET  /search/                   # Search images
+GET  /info/                     # Statistics dashboard
+GET  /profile/<wallet_address>/ # User profiles
+GET  /image/<id>/              # Image details
+```
+
+### **Web3 Endpoints (Wallet Required)**
+```
+POST /connect_wallet/           # Wallet authentication
+POST /disconnect_wallet/        # Session termination
+POST /image/<id>/upvote/       # Toggle upvote
+POST /image/<id>/comment/      # Add comment
+POST /update_profile/          # Update user profile
+```
+
+## 🎨 Frontend Features
+
+### **Modern UI Components**
+- Responsive CSS Grid layout
+- Dark theme with gradient accents
+- Smooth animations and transitions
+- Mobile-optimized navigation
+- Progressive loading for large galleries
+
+### **JavaScript Features**
+- Web3 wallet integration (MetaMask)
+- Real-time upvote status updates
+- Infinite scroll pagination
+- Search and filter functionality
+- Social interaction handlers
+
+### **Accessibility**
+- Semantic HTML structure
+- Keyboard navigation support
+- Screen reader compatibility
+- High contrast color schemes
+
+## 🚀 Production Deployment
+
+### **Heroku Configuration**
+```bash
+# Required buildpacks
+heroku buildpacks:add heroku/python
+
+# Required add-ons
+heroku addons:create heroku-postgresql:mini
+heroku addons:create scheduler:standard
+
+# Essential config vars
+heroku config:set SECRET_KEY=your-secret-key
+heroku config:set DEBUG=False
+heroku config:set ALLOWED_HOSTS=your-app.herokuapp.com
+```
+
+### **Performance Optimization**
+- Database indexing on frequently queried fields
+- IPFS gateway caching and fallbacks
+- Efficient querysets with select_related/prefetch_related
+- Static file compression and CDN-ready
+- Pagination for large datasets
 
 ## 🐛 Troubleshooting
 
-### 500 Server Error
-- Check that all environment variables are set
-- Ensure database migrations have run
-- Verify ALLOWED_HOSTS includes your domain
+### **Common Issues**
 
-### No Images Found
-- Check API key validity
-- Verify contract addresses
-- Ensure RPC endpoint is accessible
-- Try scanning more blocks
+#### **Wallet Connection Problems**
+- Ensure MetaMask is installed and unlocked
+- Check browser console for JavaScript errors
+- Verify wallet is connected to correct network (Arbitrum)
 
-### GitHub Actions Not Working
-- Verify repository secrets are set correctly
-- Check HEROKU_API_KEY is valid
-- Ensure HEROKU_APP_NAME matches your app
+#### **No Images Displaying**
+- Run initial scan: `python manage.py scan_arbius --blocks 1000`
+- Check database: `python manage.py shell` → `ArbiusImage.objects.count()`
+- Verify IPFS gateways are accessible
+
+#### **Social Features Not Working**
+- Ensure wallet is connected
+- Check for JavaScript errors in browser console
+- Verify signatures are being generated correctly
+
+#### **Deployment Issues**
+- Confirm all environment variables are set
+- Run migrations: `heroku run python manage.py migrate`
+- Check logs: `heroku logs --tail`
+
+## 🔍 Monitoring & Analytics
+
+### **Built-in Statistics**
+- Real-time image count and growth
+- Creator activity and rankings  
+- Model usage analytics
+- Social engagement metrics
+- IPFS accessibility monitoring
+
+### **Admin Interface**
+Access Django admin at `/admin/` to:
+- Monitor database health
+- Review flagged content
+- Manage user profiles
+- Analyze system performance
 
 ## 🤝 Contributing
 
+### **Development Setup**
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Make changes and test thoroughly
+4. Ensure all tests pass: `python manage.py test`
+5. Submit pull request with detailed description
+
+### **Contribution Guidelines**
+- Follow Django best practices
+- Maintain Web3 security standards
+- Add tests for new features
+- Update documentation
+- Respect user privacy and data protection
 
 ## 📄 License
 
 MIT License - see LICENSE file for details.
 
-## 🙏 Acknowledgments
+## 🙏 About & Acknowledgments
 
-- **Arbius Team**: For creating the decentralized AI network
-- **Arbitrum**: For the fast, low-cost blockchain infrastructure
-- **Django Community**: For the excellent web framework
+### **About This Project**
+
+Arbius Gallery represents the intersection of decentralized AI and social Web3 applications. Built as a comprehensive showcase for the Arbius network, it demonstrates how blockchain technology can create transparent, community-driven platforms for AI-generated content.
+
+The gallery serves multiple purposes:
+- **Community Hub**: A central place for Arbius users to discover and interact with AI art
+- **Technical Demo**: Showcasing integration between Django, Web3, and decentralized storage
+- **Social Platform**: Enabling creators to build profiles and engage with their audience
+- **Analytics Tool**: Providing insights into network usage and growth patterns
+
+### **Technology Stack**
+- **Backend**: Django 5.2.2 with PostgreSQL
+- **Blockchain**: Arbitrum network integration
+- **Storage**: IPFS for decentralized image storage
+- **Frontend**: Vanilla JavaScript with Web3 integration
+- **Authentication**: MetaMask wallet signatures
+- **Deployment**: Heroku with GitHub Actions CI/CD
+
+### **Acknowledgments**
+
+- **Arbius Team**: For creating the revolutionary decentralized AI network that makes this gallery possible
+- **Arbitrum**: For providing fast, low-cost blockchain infrastructure that enables smooth user experiences
+- **MetaMask**: For creating the wallet infrastructure that powers Web3 authentication
+- **IPFS Community**: For building the decentralized storage network that preserves AI art permanently
+- **Django Community**: For the robust web framework that powers the backend
+- **Open Source Contributors**: For the countless libraries and tools that make this project possible
+
+### **The Vision**
+
+This gallery embodies the vision of a decentralized creative economy where:
+- Artists retain full ownership of their work
+- Community members can engage and support creators directly
+- Content is stored permanently and cannot be censored
+- Innovation happens through open, transparent protocols
+- Value flows directly to creators and contributors
 
 ---
 
-**🎉 Enjoy exploring the beautiful world of AI-generated art on Arbius!** # Trigger workflow
+**🎉 Explore the future of AI art at [Arbius Gallery](https://arbius-6cdb53a42247.herokuapp.com)**
+
+*Built with ❤️ for the decentralized web*
