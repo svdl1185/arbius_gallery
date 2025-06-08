@@ -57,7 +57,7 @@ def index(request):
     # Apply task submitter filter if provided
     task_submitter_filter = request.GET.get('task_submitter', '')
     if task_submitter_filter:
-        images = images.filter(task_submitter=task_submitter_filter)
+        images = images.filter(task_submitter__iexact=task_submitter_filter)
     
     # Order by timestamp
     images = images.order_by('-timestamp')
@@ -125,7 +125,7 @@ def search(request):
     
     # Apply task submitter filter if provided
     if task_submitter_filter:
-        images = images.filter(task_submitter=task_submitter_filter)
+        images = images.filter(task_submitter__iexact=task_submitter_filter)
     
     # Order by timestamp
     images = images.order_by('-timestamp')
@@ -179,7 +179,7 @@ def image_detail(request, image_id):
     same_user_images = None
     if image.task_submitter:
         same_user_images = get_base_queryset().filter(
-            task_submitter=image.task_submitter
+            task_submitter__iexact=image.task_submitter
         ).exclude(id=image.id).order_by('-timestamp')[:6]
     
     # Get images from the same model
