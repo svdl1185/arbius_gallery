@@ -15,38 +15,24 @@ from .middleware import require_wallet_auth
 
 def get_base_queryset():
     """Get the base queryset for images with optimizations and filtering"""
-    # Define problematic models to exclude
-    EXCLUDED_MODELS = [
-        # Add model IDs that should be filtered out
-        # Example: models that consistently produce inappropriate content
-        '0x0000000000000000000000000000000000000000',  # Null/empty model
-        # Add other model IDs here as needed
-    ]
     
-    # Define curated model categories for better filtering
-    CURATED_MODELS = {
-        'safe': [
-            # Add known safe model IDs here
-            '0xa473c70e9d7c872ac948d20546bc79db55fa64ca325a4b229aaffddb7f86aae0',  # Popular stable model
-            '0x89c39001e3b23d2095a1d59cb8c02c3eeb74d83a',  # Another popular model
-        ],
-        'artistic': [
-            # Add artistic/creative model IDs here
-        ],
-        'experimental': [
-            # Add experimental model IDs here
-        ]
-    }
+    # Define known valid image generation models 
+    VALID_IMAGE_MODELS = [
+        '0xa473c70e9d7c872ac948d20546bc79db55fa64ca325a4b229aaffddb7f86aae0',  # Main stable diffusion model
+        '0x89c39001e3b23d2095a1d59cb8c02c3eeb74d83a',  # Another valid model
+        '0x6cb3eed9fe3f32da1',  # Valid model
+        # Add more known valid models here as they are identified
+    ]
     
     queryset = ArbiusImage.objects.select_related().prefetch_related('upvotes', 'comments').filter(
         is_accessible=True  # Only show accessible images
     )
     
-    # Exclude problematic models
-    if EXCLUDED_MODELS:
-        queryset = queryset.exclude(model_id__in=EXCLUDED_MODELS)
+    # For now, only show images from known valid models (safest approach)
+    # This prevents showing any test/text content
+    queryset = queryset.filter(model_id__in=VALID_IMAGE_MODELS)
     
-    # Additional content filtering
+    # Additional content filtering for extra safety
     queryset = queryset.exclude(
         # Filter out images with problematic prompts
         Q(prompt__icontains='hitler') |
@@ -62,7 +48,16 @@ def get_base_queryset():
 
 
 def get_available_models_with_categories():
-    """Get available models organized by categories with custom filtering"""
+    """Get available models organized by categories with comprehensive filtering"""
+    
+    # Define known valid image generation models (whitelist approach)
+    VALID_IMAGE_MODELS = [
+        '0xa473c70e9d7c872ac948d20546bc79db55fa64ca325a4b229aaffddb7f86aae0',  # Main stable diffusion model
+        '0x89c39001e3b23d2095a1d59cb8c02c3eeb74d83a',  # Another valid model
+        '0x6cb3eed9fe3f32da1',  # Valid model
+        # Add more known valid models here as they are identified
+    ]
+    
     # Get all model stats
     all_models = ArbiusImage.objects.values('model_id').annotate(
         count=Count('id')
@@ -70,31 +65,54 @@ def get_available_models_with_categories():
         model_id__isnull=False
     ).exclude(
         model_id=''
-    ).exclude(
-        # Exclude the same problematic models
-        model_id__in=['0x0000000000000000000000000000000000000000']
     ).order_by('-count')
+    
+    # Apply aggressive filtering to remove test/text models
+    filtered_models = []
+    for model in all_models:
+        model_id = model['model_id']
+        
+        # Skip if model_id is too short (invalid)
+        if len(model_id) < 10:
+            continue
+            
+        # Skip all-zero or mostly-zero models (test models)
+        if model_id.replace('0x', '').replace('0', '').replace('.', '') == '':
+            continue
+            
+        # Skip models that are all zeros with trailing characters
+        hex_part = model_id.replace('0x', '')
+        if len(hex_part.replace('0', '')) <= 3:  # Mostly zeros
+            continue
+            
+        # For now, use whitelist approach - only include known good models
+        # This is safer than trying to detect all bad patterns
+        if model_id in VALID_IMAGE_MODELS:
+            filtered_models.append(model)
+        # Also include models with very high usage counts (likely valid)
+        elif model['count'] >= 1000:  # High usage suggests it's a real model
+            # But still exclude obvious test patterns
+            hex_part = model_id.replace('0x', '').lower()
+            if not (hex_part.startswith('000000') or hex_part.endswith('000000')):
+                filtered_models.append(model)
     
     # Define custom model categories for better UX
     MODEL_CATEGORIES = {
         'Popular Models': [
             '0xa473c70e9d7c872ac948d20546bc79db55fa64ca325a4b229aaffddb7f86aae0',
+        ],
+        'Alternative Models': [
             '0x89c39001e3b23d209092e3c6b8c02c3eeb74d83a',
             '0x6cb3eed9fe3f32da1',
-        ],
-        'Stable Diffusion Variants': [
-            # Add stable diffusion model IDs
-        ],
-        'Experimental Models': [
-            # Add experimental model IDs
         ]
     }
     
     # Separate models into categories
-    categorized = {'Popular': [], 'Other': []}
+    categorized = {'Popular': [], 'Alternative': [], 'Other': []}
     popular_model_ids = MODEL_CATEGORIES.get('Popular Models', [])
+    alternative_model_ids = MODEL_CATEGORIES.get('Alternative Models', [])
     
-    for model in all_models:
+    for model in filtered_models:
         model_info = {
             'model_id': model['model_id'],
             'count': model['count'],
@@ -103,6 +121,8 @@ def get_available_models_with_categories():
         
         if model['model_id'] in popular_model_ids:
             categorized['Popular'].append(model_info)
+        elif model['model_id'] in alternative_model_ids:
+            categorized['Alternative'].append(model_info)
         else:
             categorized['Other'].append(model_info)
     
@@ -110,8 +130,8 @@ def get_available_models_with_categories():
     for category in categorized:
         categorized[category] = sorted(categorized[category], key=lambda x: x['count'], reverse=True)
     
-    # Flatten for backward compatibility
-    flattened = categorized['Popular'] + categorized['Other']
+    # Flatten for backward compatibility, prioritizing popular models
+    flattened = categorized['Popular'] + categorized['Alternative'] + categorized['Other']
     
     return flattened, categorized
 
