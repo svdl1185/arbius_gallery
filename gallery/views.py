@@ -353,9 +353,7 @@ def info(request):
     
     # Chart data - Cumulative images (last 25 days) - use timestamp
     cumulative_chart_data = []
-    total_so_far = base_queryset.filter(
-        timestamp__lt=now - timedelta(days=24)
-    ).count()
+    total_so_far = 0  # Start at 0 for the period
     
     for i in range(24, -1, -1):
         date = now - timedelta(days=i)
