@@ -276,71 +276,74 @@ def info(request):
     from django.db.models import Q
     import json
     
-    total_images = ArbiusImage.objects.count()
-    total_accessible = ArbiusImage.objects.filter(is_accessible=True).count()
+    # Use the same filtering as the main gallery
+    base_queryset = get_base_queryset()
+    
+    total_images = base_queryset.count()
+    total_accessible = base_queryset.filter(is_accessible=True).count()
     
     # Time periods
     now = timezone.now()
     last_24h = now - timedelta(hours=24)
     last_week = now - timedelta(days=7)
     
-    # Recent activity
-    recent_images = ArbiusImage.objects.filter(discovered_at__gte=last_24h).count()
-    images_this_week = ArbiusImage.objects.filter(discovered_at__gte=last_week).count()
+    # Recent activity - use timestamp (blockchain time) instead of discovered_at
+    recent_images = base_queryset.filter(timestamp__gte=last_24h).count()
+    images_this_week = base_queryset.filter(timestamp__gte=last_week).count()
     
     # User statistics
-    unique_users = ArbiusImage.objects.filter(
+    unique_users = base_queryset.filter(
         task_submitter__isnull=False
     ).values('task_submitter').distinct().count()
     
-    new_users_this_week = ArbiusImage.objects.filter(
-        discovered_at__gte=last_week,
+    new_users_this_week = base_queryset.filter(
+        timestamp__gte=last_week,
         task_submitter__isnull=False
     ).values('task_submitter').distinct().count()
     
-    # Model statistics
-    unique_models = ArbiusImage.objects.filter(
+    # Model statistics - use filtered queryset
+    unique_models = base_queryset.filter(
         model_id__isnull=False
     ).exclude(model_id='').values('model_id').distinct().count()
     
-    # Most used models
-    most_used_model = ArbiusImage.objects.filter(
+    # Most used models - use filtered queryset
+    most_used_model = base_queryset.filter(
         model_id__isnull=False
     ).exclude(model_id='').values('model_id').annotate(
         count=Count('id')
     ).order_by('-count').first()
     
-    most_used_model_week = ArbiusImage.objects.filter(
+    most_used_model_week = base_queryset.filter(
         model_id__isnull=False,
-        discovered_at__gte=last_week
+        timestamp__gte=last_week
     ).exclude(model_id='').values('model_id').annotate(
         count=Count('id')
     ).order_by('-count').first()
     
-    # Top creators
-    top_creators = ArbiusImage.objects.filter(
+    # Top creators - use filtered queryset
+    top_creators = base_queryset.filter(
         task_submitter__isnull=False
     ).values('task_submitter').annotate(
         image_count=Count('id')
     ).order_by('-image_count')[:10]
     
     # Model statistics for old context (keeping for compatibility)
-    model_stats = ArbiusImage.objects.filter(
+    model_stats = base_queryset.filter(
         model_id__isnull=False
     ).exclude(model_id='').values('model_id').annotate(
         count=Count('id')
     ).order_by('-count')[:10]
     
-    # Chart data - Daily images (last 25 days)
+    # Chart data - Daily images (last 25 days) - use timestamp
     daily_chart_data = []
     for i in range(24, -1, -1):
         date = now - timedelta(days=i)
         date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
         date_end = date_start + timedelta(days=1)
         
-        count = ArbiusImage.objects.filter(
-            discovered_at__gte=date_start,
-            discovered_at__lt=date_end
+        count = base_queryset.filter(
+            timestamp__gte=date_start,
+            timestamp__lt=date_end
         ).count()
         
         daily_chart_data.append({
@@ -348,10 +351,10 @@ def info(request):
             'count': count
         })
     
-    # Chart data - Cumulative images (last 25 days)
+    # Chart data - Cumulative images (last 25 days) - use timestamp
     cumulative_chart_data = []
-    total_so_far = ArbiusImage.objects.filter(
-        discovered_at__lt=now - timedelta(days=24)
+    total_so_far = base_queryset.filter(
+        timestamp__lt=now - timedelta(days=24)
     ).count()
     
     for i in range(24, -1, -1):
@@ -359,9 +362,9 @@ def info(request):
         date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
         date_end = date_start + timedelta(days=1)
         
-        daily_count = ArbiusImage.objects.filter(
-            discovered_at__gte=date_start,
-            discovered_at__lt=date_end
+        daily_count = base_queryset.filter(
+            timestamp__gte=date_start,
+            timestamp__lt=date_end
         ).count()
         
         total_so_far += daily_count
