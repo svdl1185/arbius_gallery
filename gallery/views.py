@@ -273,12 +273,49 @@ def image_detail(request, image_id):
 
 def info(request):
     """Info page with enhanced statistics"""
+    from django.db.models import Q
+    import json
+    
     total_images = ArbiusImage.objects.count()
     total_accessible = ArbiusImage.objects.filter(is_accessible=True).count()
     
+    # Time periods
+    now = timezone.now()
+    last_24h = now - timedelta(hours=24)
+    last_week = now - timedelta(days=7)
+    
     # Recent activity
-    last_24h = timezone.now() - timedelta(hours=24)
     recent_images = ArbiusImage.objects.filter(discovered_at__gte=last_24h).count()
+    images_this_week = ArbiusImage.objects.filter(discovered_at__gte=last_week).count()
+    
+    # User statistics
+    unique_users = ArbiusImage.objects.filter(
+        task_submitter__isnull=False
+    ).values('task_submitter').distinct().count()
+    
+    new_users_this_week = ArbiusImage.objects.filter(
+        discovered_at__gte=last_week,
+        task_submitter__isnull=False
+    ).values('task_submitter').distinct().count()
+    
+    # Model statistics
+    unique_models = ArbiusImage.objects.filter(
+        model_id__isnull=False
+    ).exclude(model_id='').values('model_id').distinct().count()
+    
+    # Most used models
+    most_used_model = ArbiusImage.objects.filter(
+        model_id__isnull=False
+    ).exclude(model_id='').values('model_id').annotate(
+        count=Count('id')
+    ).order_by('-count').first()
+    
+    most_used_model_week = ArbiusImage.objects.filter(
+        model_id__isnull=False,
+        discovered_at__gte=last_week
+    ).exclude(model_id='').values('model_id').annotate(
+        count=Count('id')
+    ).order_by('-count').first()
     
     # Top creators
     top_creators = ArbiusImage.objects.filter(
@@ -287,27 +324,81 @@ def info(request):
         image_count=Count('id')
     ).order_by('-image_count')[:10]
     
-    # Model statistics
+    # Model statistics for old context (keeping for compatibility)
     model_stats = ArbiusImage.objects.filter(
         model_id__isnull=False
     ).exclude(model_id='').values('model_id').annotate(
         count=Count('id')
     ).order_by('-count')[:10]
     
+    # Chart data - Daily images (last 25 days)
+    daily_chart_data = []
+    for i in range(24, -1, -1):
+        date = now - timedelta(days=i)
+        date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_end = date_start + timedelta(days=1)
+        
+        count = ArbiusImage.objects.filter(
+            discovered_at__gte=date_start,
+            discovered_at__lt=date_end
+        ).count()
+        
+        daily_chart_data.append({
+            'date': date.strftime('%m/%d'),
+            'count': count
+        })
+    
+    # Chart data - Cumulative images (last 25 days)
+    cumulative_chart_data = []
+    total_so_far = ArbiusImage.objects.filter(
+        discovered_at__lt=now - timedelta(days=24)
+    ).count()
+    
+    for i in range(24, -1, -1):
+        date = now - timedelta(days=i)
+        date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_end = date_start + timedelta(days=1)
+        
+        daily_count = ArbiusImage.objects.filter(
+            discovered_at__gte=date_start,
+            discovered_at__lt=date_end
+        ).count()
+        
+        total_so_far += daily_count
+        
+        cumulative_chart_data.append({
+            'date': date.strftime('%m/%d'),
+            'total': total_so_far
+        })
+    
     # Social statistics
     total_upvotes = ImageUpvote.objects.count()
     total_comments = ImageComment.objects.count()
     total_profiles = UserProfile.objects.count()
     
+    # Last scan time (use the latest image discovery time)
+    latest_image = ArbiusImage.objects.order_by('-discovered_at').first()
+    last_scan_time = latest_image.discovered_at if latest_image else None
+    
     context = {
         'total_images': total_images,
         'total_accessible': total_accessible,
         'recent_images': recent_images,
+        'images_this_week': images_this_week,
+        'new_images_24h': recent_images,
+        'unique_users': unique_users,
+        'new_users_this_week': new_users_this_week,
+        'unique_models': unique_models,
+        'most_used_model': most_used_model,
+        'most_used_model_week': most_used_model_week,
         'top_creators': top_creators,
         'model_stats': model_stats,
         'total_upvotes': total_upvotes,
         'total_comments': total_comments,
         'total_profiles': total_profiles,
+        'cumulative_chart_data': json.dumps(cumulative_chart_data),
+        'daily_chart_data': json.dumps(daily_chart_data),
+        'last_scan_time': last_scan_time,
         'wallet_address': getattr(request, 'wallet_address', None),
         'user_profile': getattr(request, 'user_profile', None),
     }
