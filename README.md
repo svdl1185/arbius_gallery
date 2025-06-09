@@ -198,11 +198,16 @@ Options:
   --hours N         Number of hours back to scan for miner activity (default: 1)
   --quiet           Suppress output for automated runs
   --initial-scan    Perform initial 24-hour scan to populate miner database
+  --mark-inactive   Mark miners as inactive if not seen for 7+ days (default: keep all miners active)
 
 # Examples:
-python manage.py identify_miners --initial-scan    # First-time setup
-python manage.py identify_miners --hours 1 --quiet # Hourly scan (for scheduling)
+python manage.py identify_miners --hours 2             # Scan last 2 hours
+python manage.py identify_miners --initial-scan        # Initial 24-hour scan
+python manage.py identify_miners --quiet               # Scheduled run (no output)
+python manage.py identify_miners --mark-inactive       # Also mark old miners as inactive
 ```
+
+**🔒 Permanent Miner List**: By default, once a wallet is identified as a miner, it stays on the automine filter list permanently, even if it becomes inactive. This ensures consistent filtering of automated content.
 
 ### **list_models**
 Analyze AI models in use:

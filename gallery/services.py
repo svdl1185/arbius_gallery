@@ -1077,7 +1077,7 @@ class ArbitrumScanner:
         logger.info(f"✅ Identified {len(miners_found)} unique miners in block range")
         return list(miners_found)
     
-    def scan_for_miners(self, hours_back=1):
+    def scan_for_miners(self, hours_back=1, mark_inactive=False):
         """Scan recent blocks to identify active miners"""
         try:
             latest_block = self.get_latest_block()
@@ -1095,17 +1095,19 @@ class ArbitrumScanner:
             
             miners = self.identify_miners_in_range(start_block, end_block)
             
-            # Mark inactive miners (haven't been seen in the last 7 days)
-            from datetime import timedelta
-            
-            cutoff_date = timezone.now() - timedelta(days=7)
-            inactive_count = MinerAddress.objects.filter(
-                last_seen__lt=cutoff_date,
-                is_active=True
-            ).update(is_active=False)
-            
-            if inactive_count > 0:
-                logger.info(f"📉 Marked {inactive_count} miners as inactive (no activity for 7+ days)")
+            # Only mark inactive miners if explicitly requested
+            # By default, miners stay on the filter list permanently once identified
+            if mark_inactive:
+                from datetime import timedelta
+                
+                cutoff_date = timezone.now() - timedelta(days=7)
+                inactive_count = MinerAddress.objects.filter(
+                    last_seen__lt=cutoff_date,
+                    is_active=True
+                ).update(is_active=False)
+                
+                if inactive_count > 0:
+                    logger.info(f"📉 Marked {inactive_count} miners as inactive (no activity for 7+ days)")
             
             return miners
             

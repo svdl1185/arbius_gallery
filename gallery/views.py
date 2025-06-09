@@ -36,8 +36,9 @@ def get_base_queryset(exclude_automine=False):
     
     # Filter out automine images if requested
     if exclude_automine:
-        # Get dynamic list of miner addresses from database
-        miner_wallets = list(MinerAddress.objects.filter(is_active=True).values_list('wallet_address', flat=True))
+        # Get ALL identified miner addresses (both active and inactive)
+        # Once a wallet is identified as a miner, it should always be filtered
+        miner_wallets = list(MinerAddress.objects.all().values_list('wallet_address', flat=True))
         
         # Fallback to hardcoded list if no miners found in database yet
         if not miner_wallets:

@@ -26,6 +26,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Perform initial scan of last 24 hours to populate miner database'
         )
+        parser.add_argument(
+            '--mark-inactive',
+            action='store_true',
+            help='Mark miners as inactive if not seen for 7+ days (default: keep all miners active)'
+        )
 
     def handle(self, *args, **options):
         scanner = ArbitrumScanner()
@@ -34,15 +39,24 @@ class Command(BaseCommand):
             self.stdout.write('🔍 Starting miner identification scan...')
         
         try:
-            # Determine scan period
-            hours_back = 24 if options['initial_scan'] else options['hours']
-            
-            if not options['quiet']:
-                period_desc = "initial 24-hour" if options['initial_scan'] else f"last {hours_back} hour(s)"
-                self.stdout.write(f'📊 Scanning {period_desc} for miner activity...')
-            
-            # Scan for miners
-            miners = scanner.scan_for_miners(hours_back)
+            if options['initial_scan']:
+                # Initial scan of last 24 hours
+                hours_back = 24
+                
+                if not options['quiet']:
+                    self.stdout.write('📊 Scanning initial 24-hour for miner activity...')
+                
+                # Scan for miners
+                miners = scanner.scan_for_miners(hours_back=hours_back, mark_inactive=options['mark_inactive'])
+            else:
+                # Regular hourly scan
+                hours = options['hours']
+                
+                if not options['quiet']:
+                    self.stdout.write(f"⏰ Scanning last {hours} hour(s) for miner activity...")
+                
+                # Scan for miners
+                miners = scanner.scan_for_miners(hours_back=hours, mark_inactive=options['mark_inactive'])
             
             # Get current statistics
             total_miners = MinerAddress.objects.count()
