@@ -72,6 +72,38 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Automine Filter Row -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="automine-filter-container">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input automine-toggle" 
+                                           type="checkbox" 
+                                           id="exclude-automine" 
+                                           name="exclude_automine"
+                                           value="true"
+                                           {% if exclude_automine %}checked{% endif %}>
+                                    <label class="form-check-label" for="exclude-automine">
+                                        <i class="bi bi-funnel me-1"></i>
+                                        Hide Automine Images
+                                        <small class="text-muted ms-2">(Filter out auto-generated content)</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Hidden fields to preserve other filters -->
+                    {% if search_query %}
+                        <input type="hidden" name="q" value="{{ search_query }}">
+                    {% endif %}
+                    {% if selected_model %}
+                        <input type="hidden" name="model" value="{{ selected_model }}">
+                    {% endif %}
+                    {% if selected_task_submitter %}
+                        <input type="hidden" name="task_submitter" value="{{ selected_task_submitter }}">
+                    {% endif %}
                 </form>
                 
                 {% if selected_model or search_query or selected_task_submitter %}
@@ -176,12 +208,12 @@
                 <ul class="pagination">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                            <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}{% if exclude_automine %}&exclude_automine=true{% endif %}">
                                 <i class="bi bi-chevron-double-left"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}{% if exclude_automine %}&exclude_automine=true{% endif %}">
                                 <i class="bi bi-chevron-left"></i>
                             </a>
                         </li>
@@ -194,19 +226,19 @@
                             </li>
                         {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">{{ num }}</a>
+                                <a class="page-link" href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}{% if exclude_automine %}&exclude_automine=true{% endif %}">{{ num }}</a>
                             </li>
                         {% endif %}
                     {% endfor %}
 
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}{% if exclude_automine %}&exclude_automine=true{% endif %}">
                                 <i class="bi bi-chevron-right"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_task_submitter %}&task_submitter={{ selected_task_submitter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}{% if exclude_automine %}&exclude_automine=true{% endif %}">
                                 <i class="bi bi-chevron-double-right"></i>
                             </a>
                         </li>
@@ -291,6 +323,11 @@ document.getElementById('user-filter').addEventListener('keypress', function(e) 
         clearTimeout(userFilterTimeout);
         this.form.submit();
     }
+});
+
+// Auto-submit form when automine toggle changes
+document.getElementById('exclude-automine').addEventListener('change', function() {
+    this.form.submit();
 });
 </script>
 

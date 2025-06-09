@@ -34,6 +34,7 @@ def get_base_queryset(exclude_automine=False):
         '0x5e33e2cead338b1224ddd34636dac7563f97c300',
         '0xdc790a53e50207861591622d349e989fef6f84bc',
         '0x4d826895b255a4f38d7ba87688604c358f4132b6',
+        '0xd04c1b09576aa4310e4768d8e9cd12fac3216f95',
     ]
     
     queryset = ArbiusImage.objects.select_related().prefetch_related('upvotes', 'comments').filter(
@@ -104,7 +105,7 @@ def index(request):
     selected_task_submitter = request.GET.get('task_submitter', '').strip()
     selected_model = request.GET.get('model', '').strip()
     sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
-    exclude_automine = request.GET.get('exclude_automine', '').lower() in ['true', '1', 'on']
+    exclude_automine = request.GET.get('exclude_automine', 'true').lower() in ['true', '1', 'on']  # Default to True
     
     # Get current user's wallet address
     current_wallet_address = getattr(request, 'wallet_address', None)
@@ -174,7 +175,7 @@ def search(request):
     selected_task_submitter = request.GET.get('task_submitter', '').strip()
     selected_model = request.GET.get('model', '').strip()
     sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
-    exclude_automine = request.GET.get('exclude_automine', '').lower() in ['true', '1', 'on']
+    exclude_automine = request.GET.get('exclude_automine', 'true').lower() in ['true', '1', 'on']  # Default to True
     
     # Get current user's wallet address
     current_wallet_address = getattr(request, 'wallet_address', None)
@@ -241,7 +242,7 @@ def image_detail(request, image_id):
     image = get_object_or_404(ArbiusImage, id=image_id)
     
     # Get automine filter preference
-    exclude_automine = request.GET.get('exclude_automine', '').lower() in ['true', '1', 'on']
+    exclude_automine = request.GET.get('exclude_automine', 'true').lower() in ['true', '1', 'on']  # Default to True
     
     # Get related images
     same_user_images = None
@@ -284,7 +285,7 @@ def info(request):
     import json
     
     # Get automine filter preference
-    exclude_automine = request.GET.get('exclude_automine', '').lower() in ['true', '1', 'on']
+    exclude_automine = request.GET.get('exclude_automine', 'true').lower() in ['true', '1', 'on']  # Default to True
     
     # Use the same filtering as the main gallery
     base_queryset = get_base_queryset(exclude_automine=exclude_automine)
@@ -552,7 +553,7 @@ def user_profile(request, wallet_address):
     """Display user profile page"""
     
     # Get automine filter preference
-    exclude_automine = request.GET.get('exclude_automine', '').lower() in ['true', '1', 'on']
+    exclude_automine = request.GET.get('exclude_automine', 'true').lower() in ['true', '1', 'on']  # Default to True
     
     # Try to get existing profile, or create one if the wallet has images
     try:
@@ -681,7 +682,8 @@ def top_users(request):
     if sort_by == 'upvotes':
         # Sort by total upvotes received - use a simpler approach
         # Get all users who have created images, then sort by upvotes
-        top_creators_raw = get_base_queryset(exclude_automine=False).filter(
+        # Filter out automine wallets from leaderboards
+        top_creators_raw = get_base_queryset(exclude_automine=True).filter(
             task_submitter__isnull=False
         ).values('task_submitter').annotate(
             image_count=Count('id'),
@@ -699,7 +701,8 @@ def top_users(request):
         
     else:
         # Default: Sort by image count (existing logic)
-        top_creators_raw = get_base_queryset(exclude_automine=False).filter(
+        # Filter out automine wallets from leaderboards
+        top_creators_raw = get_base_queryset(exclude_automine=True).filter(
             task_submitter__isnull=False
         ).values('task_submitter').annotate(
             image_count=Count('id')
@@ -708,9 +711,10 @@ def top_users(request):
         # Convert to consistent format and add upvote counts
         top_creators = []
         for creator in top_creators_raw:
-            # Get upvotes for this user
+            # Get upvotes for this user (from non-automine images only)
             total_upvotes = ImageUpvote.objects.filter(
-                image__task_submitter__iexact=creator['task_submitter']
+                image__task_submitter__iexact=creator['task_submitter'],
+                image__in=get_base_queryset(exclude_automine=True)
             ).count()
             
             top_creators.append({
