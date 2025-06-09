@@ -415,8 +415,8 @@
 
 /* Automine Filter Styles */
 .automine-filter-container {
-    background: rgba(255, 165, 0, 0.1);
-    border: 1px solid rgba(255, 165, 0, 0.3);
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
     border-radius: 12px;
     padding: 0.75rem 1rem;
 }
@@ -426,14 +426,9 @@
     border-color: var(--card-border);
 }
 
-.automine-toggle:checked {
-    background-color: #ff8c00;
-    border-color: #ff8c00;
-}
-
 .automine-toggle:focus {
-    border-color: #ff8c00;
-    box-shadow: 0 0 0 0.2rem rgba(255, 140, 0, 0.25);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 
 .form-check-label {
