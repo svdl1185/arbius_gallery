@@ -189,6 +189,21 @@ Options:
   --end-block N     End scanning at specific block
 ```
 
+### **identify_miners**
+Automated miner identification system:
+```bash
+python manage.py identify_miners [options]
+
+Options:
+  --hours N         Number of hours back to scan for miner activity (default: 1)
+  --quiet           Suppress output for automated runs
+  --initial-scan    Perform initial 24-hour scan to populate miner database
+
+# Examples:
+python manage.py identify_miners --initial-scan    # First-time setup
+python manage.py identify_miners --hours 1 --quiet # Hourly scan (for scheduling)
+```
+
 ### **list_models**
 Analyze AI models in use:
 ```bash
@@ -196,7 +211,51 @@ python manage.py list_models
 # Shows model statistics and usage patterns
 ```
 
+## 🤖 Automated Miner Detection
+
+### **Robust Miner Identification**
+The system now automatically identifies miner wallets by monitoring blockchain activity:
+
+- **Real-time Detection**: Scans for solution submissions and commitments to the engine contract
+- **Dynamic Filtering**: Auto-updates the automine filter with newly discovered miners
+- **Activity Tracking**: Monitors miner activity and marks inactive miners
+- **Fallback Protection**: Maintains hardcoded list as backup if database is empty
+
+### **How It Works**
+1. **Blockchain Scanning**: Monitors engine contract for `submitSolution` transactions
+2. **Miner Identification**: Records wallet addresses that submit solutions
+3. **Activity Tracking**: Updates last-seen timestamps and solution counts
+4. **Auto-filtering**: Dynamically excludes active miners from image pools
+5. **Cleanup**: Automatically marks miners inactive after 7 days of no activity
+
+### **Database Schema**
+```python
+class MinerAddress:
+    wallet_address: str       # Unique miner wallet address
+    first_seen: datetime      # When first identified as miner
+    last_seen: datetime       # Last activity timestamp
+    total_solutions: int      # Number of solutions submitted
+    total_commitments: int    # Number of commitments submitted
+    is_active: bool          # Whether currently active (last 7 days)
+```
+
 ## 🔄 Automated Scanning
+
+### **Heroku Scheduler Setup**
+1. **Install Scheduler Add-on**:
+   ```bash
+   heroku addons:create scheduler:standard --app your-app-name
+   heroku addons:open scheduler --app your-app-name
+   ```
+
+2. **Add Hourly Jobs**:
+   ```bash
+   # Image scanning (every 10 minutes)
+   python manage.py scan_arbius --blocks 100 --quiet
+   
+   # Miner identification (every hour)
+   python manage.py identify_miners --hours 1 --quiet
+   ```
 
 ### **GitHub Actions (Recommended - 1-minute intervals)**
 1. Push code to GitHub repository
@@ -204,11 +263,17 @@ python manage.py list_models
    - `HEROKU_API_KEY`: Your Heroku API token
    - `HEROKU_APP_NAME`: Your Heroku application name
 3. Automatic scanning runs every minute via GitHub Actions
+4. Miner identification runs every hour automatically
 
-### **Heroku Scheduler (10-minute intervals)**
-1. Install scheduler: `heroku addons:create scheduler:standard --app your-app-name`
-2. Open scheduler: `heroku addons:open scheduler --app your-app-name`
-3. Add job: `python manage.py scan_arbius --blocks 100 --quiet`
+### **Initial Setup**
+After deployment, run these commands to populate the databases:
+```bash
+# Populate image database
+heroku run python manage.py scan_arbius --blocks 1000 --app your-app-name
+
+# Populate miner database  
+heroku run python manage.py identify_miners --initial-scan --app your-app-name
+```
 
 ## 🌐 Web3 Integration
 
@@ -311,6 +376,11 @@ heroku config:set ALLOWED_HOSTS=your-app.herokuapp.com
 - Check database: `python manage.py shell` → `ArbiusImage.objects.count()`
 - Verify IPFS gateways are accessible
 
+#### **Automine Filter Not Working**
+- Check miner database: `python manage.py shell` → `MinerAddress.objects.count()`
+- Run initial miner scan: `python manage.py identify_miners --initial-scan`
+- Verify miners are marked as active: `MinerAddress.objects.filter(is_active=True).count()`
+
 #### **Social Features Not Working**
 - Ensure wallet is connected
 - Check for JavaScript errors in browser console
@@ -321,6 +391,12 @@ heroku config:set ALLOWED_HOSTS=your-app.herokuapp.com
 - Run migrations: `heroku run python manage.py migrate`
 - Check logs: `heroku logs --tail`
 
+#### **Scheduler Not Running**
+- Verify scheduler add-on is installed: `heroku addons --app your-app-name`
+- Check scheduled jobs: `heroku addons:open scheduler --app your-app-name`
+- Review job logs in Heroku dashboard
+- Test manually: `heroku run python manage.py identify_miners --quiet --app your-app-name`
+
 ## 🔍 Monitoring & Analytics
 
 ### **Built-in Statistics**
@@ -329,11 +405,32 @@ heroku config:set ALLOWED_HOSTS=your-app.herokuapp.com
 - Model usage analytics
 - Social engagement metrics
 - IPFS accessibility monitoring
+- **Miner Activity Tracking**: Monitor active/inactive miners and their solution counts
+
+### **Miner Database Monitoring**
+```bash
+# Check miner statistics
+python manage.py shell -c "
+from gallery.models import MinerAddress;
+total = MinerAddress.objects.count();
+active = MinerAddress.objects.filter(is_active=True).count();
+print(f'Total miners: {total}, Active: {active}, Inactive: {total-active}')
+"
+
+# View top miners by activity
+python manage.py shell -c "
+from gallery.models import MinerAddress;
+[print(f'{m.wallet_address[:10]}... - {m.total_solutions} solutions') 
+ for m in MinerAddress.objects.filter(is_active=True)[:10]]
+"
+```
 
 ### **Admin Interface**
 Access Django admin at `/admin/` to:
 - Monitor database health
 - Review flagged content
+- **Manage miner addresses and activity**
+- **View automine filter effectiveness**
 - Manage user profiles
 - Analyze system performance
 

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ArbiusImage, ScanStatus
+from .models import ArbiusImage, ScanStatus, MinerAddress
 
 
 @admin.register(ArbiusImage)
@@ -50,6 +50,43 @@ class ArbiusImageAdmin(admin.ModelAdmin):
         return obj.prompt.strip().startswith("<|begin_of_text|>")
     is_system_text.boolean = True
     is_system_text.short_description = 'System Text'
+
+
+@admin.register(MinerAddress)
+class MinerAddressAdmin(admin.ModelAdmin):
+    list_display = ['short_address', 'is_active', 'total_solutions', 'total_commitments', 'last_seen', 'first_seen']
+    list_filter = ['is_active', 'last_seen', 'first_seen']
+    search_fields = ['wallet_address']
+    readonly_fields = ['wallet_address', 'first_seen']
+    ordering = ['-last_seen']
+    
+    fieldsets = (
+        ('Miner Information', {
+            'fields': ('wallet_address', 'is_active')
+        }),
+        ('Activity Statistics', {
+            'fields': ('total_solutions', 'total_commitments')
+        }),
+        ('Timestamps', {
+            'fields': ('first_seen', 'last_seen')
+        }),
+    )
+    
+    def short_address(self, obj):
+        return f"{obj.wallet_address[:10]}...{obj.wallet_address[-4:]}"
+    short_address.short_description = 'Wallet Address'
+    
+    actions = ['mark_as_active', 'mark_as_inactive']
+    
+    def mark_as_active(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} miners marked as active.')
+    mark_as_active.short_description = 'Mark selected miners as active'
+    
+    def mark_as_inactive(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} miners marked as inactive.')
+    mark_as_inactive.short_description = 'Mark selected miners as inactive'
 
 
 @admin.register(ScanStatus)

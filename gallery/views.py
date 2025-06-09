@@ -9,7 +9,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 import json
 
-from .models import ArbiusImage, UserProfile, ImageUpvote, ImageComment
+from .models import ArbiusImage, UserProfile, ImageUpvote, ImageComment, MinerAddress
 from .middleware import require_wallet_auth
 
 
@@ -29,14 +29,6 @@ def get_base_queryset(exclude_automine=False):
         '0xa473c70e9d7c872ac948d20546bc79db55fa64ca325a4b229aaffddb7f86aae0',  # Main image model only
     ]
     
-    # Automine wallet addresses to filter out
-    AUTOMINE_WALLETS = [
-        '0x5e33e2cead338b1224ddd34636dac7563f97c300',
-        '0xdc790a53e50207861591622d349e989fef6f84bc',
-        '0x4d826895b255a4f38d7ba87688604c358f4132b6',
-        '0xd04c1b09576aa4310e4768d8e9cd12fac3216f95',
-    ]
-    
     queryset = ArbiusImage.objects.select_related().prefetch_related('upvotes', 'comments').filter(
         is_accessible=True,  # Only show accessible images
         model_id__in=ALLOWED_MODELS  # Only allow whitelisted models
@@ -44,7 +36,19 @@ def get_base_queryset(exclude_automine=False):
     
     # Filter out automine images if requested
     if exclude_automine:
-        queryset = queryset.exclude(task_submitter__in=AUTOMINE_WALLETS)
+        # Get dynamic list of miner addresses from database
+        miner_wallets = list(MinerAddress.objects.filter(is_active=True).values_list('wallet_address', flat=True))
+        
+        # Fallback to hardcoded list if no miners found in database yet
+        if not miner_wallets:
+            miner_wallets = [
+                '0x5e33e2cead338b1224ddd34636dac7563f97c300',
+                '0xdc790a53e50207861591622d349e989fef6f84bc',
+                '0x4d826895b255a4f38d7ba87688604c358f4132b6',
+                '0xd04c1b09576aa4310e4768d8e9cd12fac3216f95',
+            ]
+        
+        queryset = queryset.exclude(task_submitter__in=miner_wallets)
     
     return queryset
 

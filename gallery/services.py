@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.utils import timezone
-from .models import ArbiusImage, ScanStatus
+from .models import ArbiusImage, ScanStatus, MinerAddress
 import logging
 
 logger = logging.getLogger(__name__)
@@ -1028,4 +1028,94 @@ class ArbitrumScanner:
                 status.save()
             except:
                 pass 
-            return [] 
+            return []
+    
+    def identify_miners_in_range(self, start_block, end_block):
+        """Identify miners by scanning for solution and commitment submissions in a block range"""
+        logger.info(f"🔍 Identifying miners in blocks {start_block} to {end_block}")
+        
+        # Get all transactions to the engine contract
+        transactions = self.get_contract_transactions(start_block, end_block)
+        
+        # Look for solution submissions (both batch and single)
+        solution_transactions = [
+            tx for tx in transactions 
+            if tx.get('input', '').startswith(self.submit_solution_batch_sig) or 
+               tx.get('input', '').startswith(self.submit_solution_single_sig)
+        ]
+        
+        # TODO: Add commitment submission signatures when available
+        # commitment_transactions = [tx for tx in transactions if tx.get('input', '').startswith(commitment_sig)]
+        
+        miners_found = set()
+        
+        # Process solution submissions
+        for tx in solution_transactions:
+            miner_address = tx['from'].lower()
+            miners_found.add(miner_address)
+            
+            # Get or create miner record
+            miner, created = MinerAddress.objects.get_or_create(
+                wallet_address=miner_address,
+                defaults={
+                    'first_seen': timezone.now(),
+                    'last_seen': timezone.now(),
+                    'total_solutions': 0,
+                    'total_commitments': 0,
+                    'is_active': True
+                }
+            )
+            
+            # Update activity
+            miner.update_activity('solution')
+            
+            if created:
+                logger.info(f"🆕 New miner identified: {miner_address}")
+            else:
+                logger.debug(f"🔄 Updated miner activity: {miner_address}")
+        
+        logger.info(f"✅ Identified {len(miners_found)} unique miners in block range")
+        return list(miners_found)
+    
+    def scan_for_miners(self, hours_back=1):
+        """Scan recent blocks to identify active miners"""
+        try:
+            latest_block = self.get_latest_block()
+            if not latest_block:
+                logger.error("Could not get latest block number")
+                return []
+            
+            # Calculate blocks for time period (approximately 1 block per second on Arbitrum)
+            blocks_for_period = hours_back * 3600  # hours * seconds
+            start_block = latest_block - blocks_for_period
+            end_block = latest_block
+            
+            logger.info(f"🔍 Scanning last {hours_back} hour(s) for miner activity...")
+            logger.info(f"Scanning blocks {start_block} to {end_block} ({blocks_for_period} blocks)")
+            
+            miners = self.identify_miners_in_range(start_block, end_block)
+            
+            # Mark inactive miners (haven't been seen in the last 7 days)
+            from datetime import timedelta
+            
+            cutoff_date = timezone.now() - timedelta(days=7)
+            inactive_count = MinerAddress.objects.filter(
+                last_seen__lt=cutoff_date,
+                is_active=True
+            ).update(is_active=False)
+            
+            if inactive_count > 0:
+                logger.info(f"📉 Marked {inactive_count} miners as inactive (no activity for 7+ days)")
+            
+            return miners
+            
+        except Exception as e:
+            logger.error(f"Error scanning for miners: {e}")
+            return []
+    
+    def get_current_miners(self):
+        """Get list of currently identified miner addresses"""
+        from .models import MinerAddress
+        
+        active_miners = MinerAddress.objects.filter(is_active=True).values_list('wallet_address', flat=True)
+        return list(active_miners) 

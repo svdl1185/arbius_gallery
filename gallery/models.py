@@ -205,3 +205,34 @@ class ScanStatus(models.Model):
     
     def __str__(self):
         return f"Scan Status - Last Block: {self.last_scanned_block}"
+
+
+class MinerAddress(models.Model):
+    """Model to track identified miner wallet addresses"""
+    
+    wallet_address = models.CharField(max_length=42, unique=True, db_index=True, help_text="Ethereum wallet address of the miner")
+    first_seen = models.DateTimeField(default=timezone.now, help_text="When this miner was first identified")
+    last_seen = models.DateTimeField(default=timezone.now, help_text="When this miner was last seen submitting solutions/commitments")
+    total_solutions = models.PositiveIntegerField(default=0, help_text="Total number of solutions submitted by this miner")
+    total_commitments = models.PositiveIntegerField(default=0, help_text="Total number of commitments submitted by this miner")
+    is_active = models.BooleanField(default=True, help_text="Whether this miner is currently considered active")
+    
+    def __str__(self):
+        return f"Miner {self.wallet_address[:10]}... (last seen: {self.last_seen.strftime('%Y-%m-%d')})"
+    
+    def update_activity(self, activity_type='solution'):
+        """Update the miner's activity timestamp and counts"""
+        self.last_seen = timezone.now()
+        if activity_type == 'solution':
+            self.total_solutions += 1
+        elif activity_type == 'commitment':
+            self.total_commitments += 1
+        self.save(update_fields=['last_seen', f'total_{activity_type}s'])
+    
+    class Meta:
+        ordering = ['-last_seen']
+        indexes = [
+            models.Index(fields=['wallet_address']),
+            models.Index(fields=['last_seen']),
+            models.Index(fields=['is_active']),
+        ]
