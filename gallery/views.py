@@ -21,7 +21,7 @@ def get_display_name_for_wallet(wallet_address):
         return f"User {wallet_address[:8]}..."
 
 
-def get_base_queryset():
+def get_base_queryset(exclude_automine=False):
     """Get the base queryset for images with optimizations and filtering"""
     
     # Only allow the main image model - be very restrictive
@@ -29,22 +29,21 @@ def get_base_queryset():
         '0xa473c70e9d7c872ac948d20546bc79db55fa64ca325a4b229aaffddb7f86aae0',  # Main image model only
     ]
     
+    # Automine wallet addresses to filter out
+    AUTOMINE_WALLETS = [
+        '0x5e33e2cead338b1224ddd34636dac7563f97c300',
+        '0xdc790a53e50207861591622d349e989fef6f84bc',
+        '0x4d826895b255a4f38d7ba87688604c358f4132b6',
+    ]
+    
     queryset = ArbiusImage.objects.select_related().prefetch_related('upvotes', 'comments').filter(
         is_accessible=True,  # Only show accessible images
         model_id__in=ALLOWED_MODELS  # Only allow whitelisted models
     )
     
-    # Additional content filtering for extra safety
-    queryset = queryset.exclude(
-        # Filter out images with problematic prompts
-        Q(prompt__icontains='hitler') |
-        Q(prompt__icontains='nazi') |
-        Q(prompt__icontains='violence') |
-        Q(prompt__icontains='explicit') |
-        Q(prompt__icontains='nsfw') |
-        # Add more filter terms as needed
-        Q(prompt__iregex=r'\b(porn|sex|nude|naked)\b')  # Case insensitive regex
-    )
+    # Filter out automine images if requested
+    if exclude_automine:
+        queryset = queryset.exclude(task_submitter__in=AUTOMINE_WALLETS)
     
     return queryset
 
@@ -105,12 +104,13 @@ def index(request):
     selected_task_submitter = request.GET.get('task_submitter', '').strip()
     selected_model = request.GET.get('model', '').strip()
     sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
+    exclude_automine = request.GET.get('exclude_automine', '').lower() in ['true', '1', 'on']
     
     # Get current user's wallet address
     current_wallet_address = getattr(request, 'wallet_address', None)
     
     # Base queryset - now includes comprehensive filtering
-    images = get_base_queryset()
+    images = get_base_queryset(exclude_automine=exclude_automine)
     
     # Apply filters (existing logic)
     if search_query:
@@ -157,6 +157,7 @@ def index(request):
         'selected_task_submitter': selected_task_submitter,
         'selected_model': selected_model,
         'sort_by': sort_by,
+        'exclude_automine': exclude_automine,
         'available_models': available_models,
         'model_categories': model_categories,
         'total_images': ArbiusImage.objects.filter(is_accessible=True).count(),  # Use filtered count
@@ -173,12 +174,13 @@ def search(request):
     selected_task_submitter = request.GET.get('task_submitter', '').strip()
     selected_model = request.GET.get('model', '').strip()
     sort_by = request.GET.get('sort', 'upvotes')  # Default to most upvoted
+    exclude_automine = request.GET.get('exclude_automine', '').lower() in ['true', '1', 'on']
     
     # Get current user's wallet address
     current_wallet_address = getattr(request, 'wallet_address', None)
     
     # Base queryset - now includes comprehensive filtering
-    images = get_base_queryset()
+    images = get_base_queryset(exclude_automine=exclude_automine)
     
     # Apply search filters
     if search_query:
@@ -225,6 +227,7 @@ def search(request):
         'selected_task_submitter': selected_task_submitter,
         'selected_model': selected_model,
         'sort_by': sort_by,
+        'exclude_automine': exclude_automine,
         'available_models': available_models,
         'model_categories': model_categories,
         'wallet_address': current_wallet_address,
@@ -237,16 +240,19 @@ def image_detail(request, image_id):
     """Individual image detail view with social features"""
     image = get_object_or_404(ArbiusImage, id=image_id)
     
+    # Get automine filter preference
+    exclude_automine = request.GET.get('exclude_automine', '').lower() in ['true', '1', 'on']
+    
     # Get related images
     same_user_images = None
     if image.task_submitter:
-        same_user_images = get_base_queryset().filter(
+        same_user_images = get_base_queryset(exclude_automine=exclude_automine).filter(
             task_submitter__iexact=image.task_submitter
         ).exclude(id=image.id).order_by('-timestamp')[:6]
     
     same_model_images = None
     if image.model_id:
-        same_model_images = get_base_queryset().filter(
+        same_model_images = get_base_queryset(exclude_automine=exclude_automine).filter(
             model_id=image.model_id
         ).exclude(id=image.id).order_by('-timestamp')[:6]
     
@@ -264,6 +270,7 @@ def image_detail(request, image_id):
         'same_model_images': same_model_images,
         'comments': comments,
         'has_upvoted': has_upvoted,
+        'exclude_automine': exclude_automine,
         'wallet_address': getattr(request, 'wallet_address', None),
         'user_profile': getattr(request, 'user_profile', None),
     }
@@ -276,8 +283,11 @@ def info(request):
     from django.db.models import Q
     import json
     
+    # Get automine filter preference
+    exclude_automine = request.GET.get('exclude_automine', '').lower() in ['true', '1', 'on']
+    
     # Use the same filtering as the main gallery
-    base_queryset = get_base_queryset()
+    base_queryset = get_base_queryset(exclude_automine=exclude_automine)
     
     total_images = base_queryset.count()
     total_accessible = base_queryset.filter(is_accessible=True).count()
@@ -400,6 +410,7 @@ def info(request):
         'cumulative_chart_data': json.dumps(cumulative_chart_data),
         'daily_chart_data': json.dumps(daily_chart_data),
         'last_scan_time': last_scan_time,
+        'exclude_automine': exclude_automine,
         'wallet_address': getattr(request, 'wallet_address', None),
         'user_profile': getattr(request, 'user_profile', None),
     }
@@ -540,12 +551,15 @@ def add_comment(request, image_id):
 def user_profile(request, wallet_address):
     """Display user profile page"""
     
+    # Get automine filter preference
+    exclude_automine = request.GET.get('exclude_automine', '').lower() in ['true', '1', 'on']
+    
     # Try to get existing profile, or create one if the wallet has images
     try:
         profile = UserProfile.objects.get(wallet_address__iexact=wallet_address)
     except UserProfile.DoesNotExist:
         # Check if this wallet has created any images
-        has_images = get_base_queryset().filter(task_submitter__iexact=wallet_address).exists()
+        has_images = get_base_queryset(exclude_automine=exclude_automine).filter(task_submitter__iexact=wallet_address).exists()
         
         if has_images:
             # Auto-create a basic profile for wallets that have created images
@@ -566,7 +580,7 @@ def user_profile(request, wallet_address):
     current_wallet_address = getattr(request, 'wallet_address', None)
     
     # Get user's images with sorting
-    user_images = get_base_queryset().filter(
+    user_images = get_base_queryset(exclude_automine=exclude_automine).filter(
         task_submitter__iexact=wallet_address
     )
     
@@ -602,6 +616,7 @@ def user_profile(request, wallet_address):
         'profile': profile,
         'page_obj': page_obj,
         'sort_by': sort_by,
+        'exclude_automine': exclude_automine,
         'is_own_profile': is_own_profile,
         'wallet_address': current_wallet_address,  # Current user's wallet (may be None)
         'user_profile': current_user_profile,  # Current user's profile (may be None)
@@ -666,7 +681,7 @@ def top_users(request):
     if sort_by == 'upvotes':
         # Sort by total upvotes received - use a simpler approach
         # Get all users who have created images, then sort by upvotes
-        top_creators_raw = get_base_queryset().filter(
+        top_creators_raw = get_base_queryset(exclude_automine=False).filter(
             task_submitter__isnull=False
         ).values('task_submitter').annotate(
             image_count=Count('id'),
@@ -684,7 +699,7 @@ def top_users(request):
         
     else:
         # Default: Sort by image count (existing logic)
-        top_creators_raw = get_base_queryset().filter(
+        top_creators_raw = get_base_queryset(exclude_automine=False).filter(
             task_submitter__isnull=False
         ).values('task_submitter').annotate(
             image_count=Count('id')
