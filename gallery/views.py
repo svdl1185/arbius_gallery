@@ -429,6 +429,7 @@ def info(request):
 # === Web3 Authentication Views ===
 
 @ratelimit(key='ip', rate='10/m', method='POST', block=True)
+@csrf_exempt
 @require_POST
 def get_auth_nonce(request):
     """Generate a secure nonce for wallet authentication"""

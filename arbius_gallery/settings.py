@@ -186,11 +186,11 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
 RATELIMIT_ENABLE = True
 RATELIMIT_USE_CACHE = 'default'
 
-# Cache configuration for rate limiting (using database cache)
+# Cache configuration for rate limiting (using local memory cache for compatibility)
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'cache_table',
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
     }
 }
 
