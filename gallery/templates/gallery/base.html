@@ -710,7 +710,12 @@
         window.DJANGO_AUTH_STATE = {
             isAuthenticated: {% if wallet_address %}true{% else %}false{% endif %},
             walletAddress: {% if wallet_address %}'{{ wallet_address }}'{% else %}null{% endif %},
-            userProfile: {% if user_profile %}{{ user_profile|safe }}{% else %}null{% endif %}
+            userProfile: {% if user_profile %}{
+                'display_name': '{{ user_profile.display_name|escapejs }}',
+                'wallet_address': '{{ user_profile.wallet_address|escapejs }}',
+                'total_images_created': {{ user_profile.total_images_created }},
+                'total_upvotes_received': {{ user_profile.total_upvotes_received }}
+            }{% else %}null{% endif %}
         };
     </script>
     

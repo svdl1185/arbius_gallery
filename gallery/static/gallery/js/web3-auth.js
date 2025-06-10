@@ -510,40 +510,74 @@ class Web3Auth {
     }
 
     syncWithServerState() {
+        console.log('Web3Auth: Syncing with server state...');
+        console.log('DJANGO_AUTH_STATE:', window.DJANGO_AUTH_STATE);
+        
         // Use Django authentication state if available
         if (window.DJANGO_AUTH_STATE) {
             if (window.DJANGO_AUTH_STATE.isAuthenticated && window.DJANGO_AUTH_STATE.walletAddress) {
+                console.log('Web3Auth: Server says authenticated, setting local state');
                 this.isConnected = true;
                 this.walletAddress = window.DJANGO_AUTH_STATE.walletAddress;
                 this.userProfile = window.DJANGO_AUTH_STATE.userProfile;
                 
                 // Save to localStorage for consistency
                 localStorage.setItem('connectedWallet', this.walletAddress);
+                if (window.DJANGO_AUTH_STATE.isAuthenticated) {
+                    localStorage.setItem('walletAuthenticated', 'true');
+                }
+                
+                console.log('Web3Auth: State synced from server - wallet:', this.walletAddress);
+                return;
+            } else {
+                console.log('Web3Auth: Server says not authenticated');
+                // Clear local state if server says not authenticated
+                this.isConnected = false;
+                this.walletAddress = null;
+                this.userProfile = null;
+                localStorage.removeItem('connectedWallet');
+                localStorage.removeItem('walletAuthenticated');
                 return;
             }
         }
         
-        // Fallback: check if server rendered authentication state
-        const disconnectBtn = document.getElementById('disconnect-wallet-btn');
-        const profileLink = document.querySelector('[href*="/gallery/profile/"]');
+        console.log('Web3Auth: No DJANGO_AUTH_STATE, checking DOM elements');
         
-        // If disconnect button is visible, we're connected on server side
-        if (disconnectBtn && disconnectBtn.offsetParent !== null) {
+        // Fallback: check if server rendered authentication state via DOM elements
+        const disconnectBtn = document.getElementById('disconnect-wallet-btn');
+        const profileLink = document.querySelector('[href*="/gallery/profile/"], [href*="/gallery/user/"]');
+        
+        // Check if disconnect button exists and is not hidden by CSS
+        const isServerAuthenticated = disconnectBtn && window.getComputedStyle(disconnectBtn).display !== 'none';
+        
+        console.log('Web3Auth: DOM check - disconnect button visible:', isServerAuthenticated);
+        
+        if (isServerAuthenticated) {
             this.isConnected = true;
             
             // Extract wallet address from profile link if available
             if (profileLink) {
                 const profileUrl = profileLink.getAttribute('href');
-                const addressMatch = profileUrl.match(/\/gallery\/profile\/([^\/]+)\//);
+                const addressMatch = profileUrl.match(/\/gallery\/(?:profile|user)\/([^\/]+)\//);
                 if (addressMatch) {
                     this.walletAddress = addressMatch[1];
+                    console.log('Web3Auth: Extracted wallet from profile link:', this.walletAddress);
                 }
             }
             
             // Save to localStorage for consistency
             if (this.walletAddress) {
                 localStorage.setItem('connectedWallet', this.walletAddress);
+                localStorage.setItem('walletAuthenticated', 'true');
             }
+        } else {
+            // Clear local state
+            console.log('Web3Auth: No authentication found, clearing state');
+            this.isConnected = false;
+            this.walletAddress = null;
+            this.userProfile = null;
+            localStorage.removeItem('connectedWallet');
+            localStorage.removeItem('walletAuthenticated');
         }
     }
 }

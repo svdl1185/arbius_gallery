@@ -183,16 +183,23 @@ SECURE_REFERRER_POLICY = 'same-origin'
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
 
 # Rate Limiting Configuration
-RATELIMIT_ENABLE = True
+RATELIMIT_ENABLE = not DEBUG  # Disable rate limiting in development
 RATELIMIT_USE_CACHE = 'default'
 
-# Cache configuration for rate limiting (using local memory cache for compatibility)
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+# Cache configuration (only needed if rate limiting is enabled)
+if RATELIMIT_ENABLE:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        }
+    }
 
 # Arbitrum/Arbius Configuration
 ARBISCAN_API_KEY = 'RSUGKSAPR7RXWF6U1S7FHYF7VSAY1I9M6D'
