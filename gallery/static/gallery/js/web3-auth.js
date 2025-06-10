@@ -258,16 +258,32 @@ class Web3Auth {
 
             const walletAddress = accounts[0].toLowerCase();
 
-            // Create message to sign for authentication
-            const message = `Welcome to Arbius Gallery!\n\nConnect your wallet to interact with images.\n\nWallet: ${walletAddress}\nTimestamp: ${Date.now()}`;
+            // Step 1: Get secure nonce from server
+            const nonceResponse = await fetch('/gallery/api/auth/nonce/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken(),
+                },
+                body: JSON.stringify({
+                    wallet_address: walletAddress
+                })
+            });
 
-            // Request signature
+            const nonceData = await nonceResponse.json();
+
+            if (!nonceData.success) {
+                throw new Error(nonceData.error || 'Failed to get authentication nonce');
+            }
+
+            // Step 2: Sign the secure message
+            const message = nonceData.message;
             const signature = await this.selectedProvider.request({
                 method: 'personal_sign',
                 params: [message, walletAddress],
             });
 
-            // Send to backend
+            // Step 3: Send signature to backend for verification
             const response = await fetch('/gallery/api/connect-wallet/', {
                 method: 'POST',
                 headers: {
@@ -292,7 +308,7 @@ class Web3Auth {
                 localStorage.setItem('connectedWallet', walletAddress);
                 localStorage.setItem('selectedWalletProvider', providerKey);
 
-                this.showAlert(`Connected with ${walletInfo.name}!`, 'success');
+                this.showAlert(`Securely connected with ${walletInfo.name}! ✅`, 'success');
                 this.updateUI();
 
                 // Don't reload page, let JavaScript handle the state update
@@ -303,7 +319,18 @@ class Web3Auth {
 
         } catch (error) {
             console.error('Error connecting wallet:', error);
-            this.showAlert(`Failed to connect wallet: ${error.message}`, 'error');
+            
+            // More user-friendly error messages
+            let errorMessage = error.message;
+            if (error.message.includes('User rejected')) {
+                errorMessage = 'Connection cancelled by user';
+            } else if (error.message.includes('expired')) {
+                errorMessage = 'Connection timeout - please try again';
+            } else if (error.message.includes('nonce')) {
+                errorMessage = 'Security verification failed - please refresh and try again';
+            }
+            
+            this.showAlert(`Failed to connect wallet: ${errorMessage}`, 'error');
         }
     }
 

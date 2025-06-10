@@ -17,19 +17,24 @@ class Web3AuthMiddleware(MiddlewareMixin):
     
     def process_request(self, request):
         """Add wallet information to request object"""
-        # Get wallet address from session or header
-        wallet_address = request.session.get('wallet_address') or request.META.get('HTTP_X_WALLET_ADDRESS')
+        # Only get wallet address from secure session, not from headers
+        wallet_address = request.session.get('wallet_address')
         
         if wallet_address:
             # Normalize address to lowercase for consistency
             wallet_address = wallet_address.lower()
             request.wallet_address = wallet_address
             
-            # Try to get or create user profile
+            # Try to get user profile
             try:
-                profile, created = UserProfile.objects.get_or_create(
+                profile = UserProfile.objects.get(wallet_address=wallet_address)
+                request.user_profile = profile
+                request.is_authenticated = True
+            except UserProfile.DoesNotExist:
+                # Create profile if wallet has authenticated but profile doesn't exist
+                profile = UserProfile.objects.create(
                     wallet_address=wallet_address,
-                    defaults={'display_name': get_display_name_for_wallet(wallet_address)}
+                    display_name=get_display_name_for_wallet(wallet_address)
                 )
                 request.user_profile = profile
                 request.is_authenticated = True

@@ -10,6 +10,8 @@ urlpatterns = [
     path('top-users/', views.top_users, name='top_users'),
     path('image/<int:image_id>/', views.image_detail, name='image_detail'),
     
+    # Secure wallet authentication endpoints
+    path('api/auth/nonce/', views.get_auth_nonce, name='get_auth_nonce'),
     path('api/connect-wallet/', views.connect_wallet, name='connect_wallet'),
     path('api/disconnect-wallet/', views.disconnect_wallet, name='disconnect_wallet'),
     

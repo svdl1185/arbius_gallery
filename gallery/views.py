@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, Http404
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods, require_POST
 from django.db.models import Q, Count, Case, When, IntegerField, Exists, OuterRef
 from django.db.models.functions import Length
@@ -8,9 +8,12 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import datetime, timedelta
 import json
+import logging
+from django_ratelimit.decorators import ratelimit
 
 from .models import ArbiusImage, UserProfile, ImageUpvote, ImageComment, MinerAddress
-from .middleware import require_wallet_auth
+from .middleware import require_wallet_auth, get_display_name_for_wallet
+from .crypto_utils import generate_auth_nonce, verify_wallet_signature, create_auth_message
 
 
 def get_display_name_for_wallet(wallet_address):
@@ -425,24 +428,67 @@ def info(request):
 
 # === Web3 Authentication Views ===
 
-@csrf_exempt
+@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 @require_POST
-def connect_wallet(request):
-    """Handle wallet connection"""
+def get_auth_nonce(request):
+    """Generate a secure nonce for wallet authentication"""
     try:
         data = json.loads(request.body)
-        wallet_address = data.get('wallet_address', '').lower()
-        signature = data.get('signature', '')
-        message = data.get('message', '')
+        wallet_address = data.get('wallet_address', '').strip()
         
-        if not wallet_address or not signature:
-            return JsonResponse({'error': 'Missing wallet address or signature'}, status=400)
+        if not wallet_address:
+            return JsonResponse({'error': 'Wallet address is required'}, status=400)
         
-        # TODO: Verify signature against message (implement signature verification)
-        # For now, we'll trust the frontend verification
+        # Basic validation of wallet address format
+        if not wallet_address.startswith('0x') or len(wallet_address) != 42:
+            return JsonResponse({'error': 'Invalid wallet address format'}, status=400)
+        
+        # Generate nonce and timestamp
+        nonce, timestamp = generate_auth_nonce(wallet_address)
+        
+        # Create message to be signed
+        message = create_auth_message(wallet_address, nonce, timestamp)
+        
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'nonce': nonce,
+            'timestamp': timestamp
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logging.error(f"Error generating auth nonce: {str(e)}")
+        return JsonResponse({'error': 'Internal server error'}, status=500)
+
+
+@ratelimit(key='ip', rate='5/m', method='POST', block=True)
+@require_POST  
+@ensure_csrf_cookie
+def connect_wallet(request):
+    """Handle secure wallet connection with signature verification"""
+    try:
+        data = json.loads(request.body)
+        wallet_address = data.get('wallet_address', '').lower().strip()
+        signature = data.get('signature', '').strip()
+        message = data.get('message', '').strip()
+        
+        if not wallet_address or not signature or not message:
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+        
+        # Verify the signature
+        is_valid, error_message = verify_wallet_signature(wallet_address, signature, message)
+        
+        if not is_valid:
+            return JsonResponse({'error': error_message}, status=400)
+        
+        # Regenerate session to prevent session fixation attacks
+        request.session.cycle_key()
         
         # Store wallet address in session
         request.session['wallet_address'] = wallet_address
+        request.session.modified = True
         
         # Get or create user profile
         profile, created = UserProfile.objects.get_or_create(
@@ -466,20 +512,34 @@ def connect_wallet(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        logging.error(f"Error connecting wallet: {str(e)}")
+        return JsonResponse({'error': 'Internal server error'}, status=500)
 
 
 @require_POST
+@ensure_csrf_cookie
 def disconnect_wallet(request):
-    """Handle wallet disconnection"""
-    request.session.pop('wallet_address', None)
-    return JsonResponse({'success': True})
+    """Handle wallet disconnection with session cleanup"""
+    try:
+        # Clear wallet address from session
+        request.session.pop('wallet_address', None)
+        
+        # Regenerate session ID for security
+        request.session.cycle_key()
+        request.session.modified = True
+        
+        return JsonResponse({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error disconnecting wallet: {str(e)}")
+        return JsonResponse({'error': 'Internal server error'}, status=500)
 
 
 # === Social Feature Views ===
 
-@csrf_exempt
+@ratelimit(key='user_or_ip', rate='30/m', method='POST', block=True)
 @require_POST
+@ensure_csrf_cookie
 @require_wallet_auth
 def toggle_upvote(request, image_id):
     """Toggle upvote on an image"""
@@ -514,11 +574,13 @@ def toggle_upvote(request, image_id):
         })
         
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        logging.error(f"Error toggling upvote: {str(e)}")
+        return JsonResponse({'error': 'Internal server error'}, status=500)
 
 
-@csrf_exempt
+@ratelimit(key='user_or_ip', rate='10/m', method='POST', block=True)
 @require_POST
+@ensure_csrf_cookie
 @require_wallet_auth
 def add_comment(request, image_id):
     """Add a comment to an image"""
@@ -529,6 +591,10 @@ def add_comment(request, image_id):
         if not content or len(content) > 1000:
             return JsonResponse({'error': 'Comment must be between 1 and 1000 characters'}, status=400)
         
+        # Basic content validation to prevent spam/abuse
+        if len(content) < 2:
+            return JsonResponse({'error': 'Comment too short'}, status=400)
+            
         image = get_object_or_404(ArbiusImage, id=image_id)
         
         comment = ImageComment.objects.create(
@@ -551,7 +617,8 @@ def add_comment(request, image_id):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        logging.error(f"Error adding comment: {str(e)}")
+        return JsonResponse({'error': 'Internal server error'}, status=500)
 
 
 def user_profile(request, wallet_address):
@@ -630,52 +697,40 @@ def user_profile(request, wallet_address):
     return render(request, 'gallery/user_profile.html', context)
 
 
-@csrf_exempt
+@ratelimit(key='user_or_ip', rate='5/m', method='POST', block=True)
 @require_POST
+@ensure_csrf_cookie
 @require_wallet_auth
 def update_profile(request):
-    """Update user profile"""
+    """Update user profile information"""
     try:
         data = json.loads(request.body)
+        display_name = data.get('display_name', '').strip()
+        
+        if not display_name:
+            return JsonResponse({'error': 'Display name is required'}, status=400)
+        
+        if len(display_name) > 50:
+            return JsonResponse({'error': 'Display name too long (max 50 characters)'}, status=400)
+        
+        # Basic validation - no special characters that could cause issues
+        if not display_name.replace(' ', '').replace('-', '').replace('_', '').isalnum():
+            return JsonResponse({'error': 'Display name can only contain letters, numbers, spaces, hyphens and underscores'}, status=400)
+        
         profile = request.user_profile
-        
-        # Update allowed fields
-        if 'display_name' in data:
-            display_name = data['display_name'].strip()
-            if len(display_name) <= 50:
-                profile.display_name = display_name
-        
-        if 'bio' in data:
-            bio = data['bio'].strip()
-            if len(bio) <= 500:
-                profile.bio = bio
-        
-        if 'website' in data:
-            profile.website = data['website'].strip()
-        
-        if 'twitter_handle' in data:
-            twitter = data['twitter_handle'].strip()
-            if twitter.startswith('@'):
-                twitter = twitter[1:]
-            if len(twitter) <= 50:
-                profile.twitter_handle = twitter
-        
+        profile.display_name = display_name
         profile.save()
         
         return JsonResponse({
             'success': True,
-            'profile': {
-                'display_name': profile.display_name,
-                'bio': profile.bio,
-                'website': profile.website,
-                'twitter_handle': profile.twitter_handle,
-            }
+            'display_name': profile.display_name
         })
         
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        logging.error(f"Error updating profile: {str(e)}")
+        return JsonResponse({'error': 'Internal server error'}, status=500)
 
 
 def top_users(request):
