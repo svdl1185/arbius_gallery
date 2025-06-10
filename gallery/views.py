@@ -505,8 +505,9 @@ def connect_wallet(request):
             'wallet_address': wallet_address,
             'profile': {
                 'display_name': profile.display_name,
+                'wallet_address': profile.wallet_address,
                 'total_images_created': profile.total_images_created,
-                'total_upvotes_received': profile.total_upvotes_received,
+                'total_upvotes_received': profile.total_upvotes_received
             }
         })
         
@@ -718,16 +719,45 @@ def update_profile(request):
         if not display_name.replace(' ', '').replace('-', '').replace('_', '').isalnum():
             return JsonResponse({'error': 'Display name can only contain letters, numbers, spaces, hyphens and underscores'}, status=400)
         
-        profile = request.user_profile
+        # Check if user profile exists - it should be set by middleware
+        profile = getattr(request, 'user_profile', None)
+        if not profile:
+            # This shouldn't happen if middleware is working correctly
+            logging.error(f"User profile not found for authenticated wallet: {getattr(request, 'wallet_address', 'Unknown')}")
+            
+            # Try to get or create profile manually
+            wallet_address = getattr(request, 'wallet_address', None)
+            if not wallet_address:
+                return JsonResponse({'error': 'Wallet address not found in session'}, status=400)
+            
+            try:
+                profile = UserProfile.objects.get(wallet_address=wallet_address)
+            except UserProfile.DoesNotExist:
+                # Create profile if it doesn't exist
+                profile = UserProfile.objects.create(
+                    wallet_address=wallet_address,
+                    display_name=get_display_name_for_wallet(wallet_address)
+                )
+                logging.info(f"Created new profile for wallet: {wallet_address}")
+        
+        # Update the profile
         profile.display_name = display_name
         profile.save()
         
+        logging.info(f"Profile updated for wallet {profile.wallet_address}: {profile.display_name}")
+        
         return JsonResponse({
             'success': True,
-            'display_name': profile.display_name
+            'profile': {
+                'display_name': profile.display_name,
+                'wallet_address': profile.wallet_address,
+                'total_images_created': profile.total_images_created,
+                'total_upvotes_received': profile.total_upvotes_received
+            }
         })
         
     except json.JSONDecodeError:
+        logging.error("Invalid JSON in profile update request")
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
         logging.error(f"Error updating profile: {str(e)}")
