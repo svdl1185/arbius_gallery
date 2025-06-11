@@ -186,20 +186,13 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
 RATELIMIT_ENABLE = not DEBUG  # Disable rate limiting in development
 RATELIMIT_USE_CACHE = 'default'
 
-# Cache configuration (only needed if rate limiting is enabled)
-if RATELIMIT_ENABLE:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'unique-snowflake',
-        }
+# Cache configuration - always use a real cache for management commands
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
     }
-else:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-        }
-    }
+}
 
 # Arbitrum/Arbius Configuration
 ARBISCAN_API_KEY = 'RSUGKSAPR7RXWF6U1S7FHYF7VSAY1I9M6D'
