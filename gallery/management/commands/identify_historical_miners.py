@@ -55,10 +55,7 @@ class Command(BaseCommand):
         wallets_with_activity = ArbiusImage.objects.values('task_submitter').annotate(
             image_count=Count('id'),
             first_image=Min('timestamp'),
-            last_image=Max('timestamp'),
-            avg_images_per_day=Count('id') / (
-                (Max('timestamp') - Min('timestamp')).total_seconds() / 86400.0 + 1
-            )
+            last_image=Max('timestamp')
         ).filter(
             task_submitter__isnull=False,
             image_count__gte=options['min_images']
@@ -73,7 +70,17 @@ class Command(BaseCommand):
         for wallet_data in wallets_with_activity:
             wallet_address = wallet_data['task_submitter']
             image_count = wallet_data['image_count']
-            avg_per_day = wallet_data['avg_images_per_day']
+            
+            # Calculate average images per day
+            first_image = wallet_data['first_image']
+            last_image = wallet_data['last_image']
+            
+            if first_image and last_image:
+                time_diff = last_image - first_image
+                days_active = max(1, time_diff.total_seconds() / 86400.0)
+                avg_per_day = image_count / days_active
+            else:
+                avg_per_day = 0
             
             # Check if already in miner database
             if MinerAddress.objects.filter(wallet_address__iexact=wallet_address).exists():
