@@ -254,7 +254,7 @@
                                 </td>
                                 <td><span class="badge bg-primary">{{ model.total_tasks }}</span></td>
                                 <td><span class="badge bg-info">{{ model.unique_miners }}</span></td>
-                                <td>{{ model.total_tasks|div:model.unique_miners|floatformat:1 }}</td>
+                                <td>{{ model.avg_tasks_per_miner|floatformat:1 }}</td>
                             </tr>
                             {% empty %}
                             <tr>

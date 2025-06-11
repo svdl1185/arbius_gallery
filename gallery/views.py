@@ -945,6 +945,13 @@ def mining_dashboard(request):
         solution_provider='0x0000000000000000000000000000000000000000'
     ).order_by('-total_tasks')
     
+    # Calculate average tasks per miner for each model
+    for model in mining_by_model:
+        if model['unique_miners'] > 0:
+            model['avg_tasks_per_miner'] = round(model['total_tasks'] / model['unique_miners'], 1)
+        else:
+            model['avg_tasks_per_miner'] = 0
+    
     # Calculate mining efficiency metrics
     avg_tasks_per_miner = round(total_tasks / max(total_unique_miners, 1), 2)
     
