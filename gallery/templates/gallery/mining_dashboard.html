@@ -14,29 +14,62 @@
             <span class="badge bg-warning text-dark">
                 <i class="bi bi-eye-slash"></i> Hidden Dashboard
             </span>
+            {% if dune_available %}
+            <span class="badge bg-success text-dark ms-2">
+                <i class="bi bi-check-circle"></i> Dune Analytics Connected
+            </span>
+            {% else %}
             <span class="badge bg-info text-dark ms-2">
                 <i class="bi bi-info-circle"></i> Task Completion Tracking
             </span>
+            {% endif %}
         </div>
     </div>
 
-    <!-- Earnings Disclaimer -->
+    <!-- Earnings Info & Fee Structure -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="alert alert-info">
-                <h5><i class="bi bi-exclamation-triangle"></i> Important: About Miner Earnings</h5>
-                <p class="mb-2">This dashboard tracks <strong>task completions</strong>, not actual earnings. Miner earnings are complex and include:</p>
+            {% if dune_available %}
+            <div class="alert alert-success">
+                <h5><i class="bi bi-check-circle"></i> Dune Analytics Integration Active!</h5>
+                <p class="mb-2">Real earnings data is being fetched from Dune Analytics. This dashboard now shows:</p>
                 <ul class="mb-2">
-                    {% for source in earning_info.sources %}
-                    <li>{{ source }}</li>
-                    {% endfor %}
+                    <li><strong>Actual AIUS earnings</strong> where available from on-chain data</li>
+                    <li><strong>Task completion metrics</strong> from our database</li>
+                    <li><strong>Fee structure breakdown</strong> based on Arbius v5</li>
                 </ul>
-                <p class="mb-2"><strong>Key factors affecting earnings:</strong></p>
-                <ul class="mb-3">
-                    {% for factor in earning_info.factors %}
-                    <li>{{ factor }}</li>
-                    {% endfor %}
-                </ul>
+                <p class="mb-0">
+                    <strong>Fee Structure:</strong>
+                    Automine = {{ earning_info.fee_structure.automine_formula }} | 
+                    User Tasks = {{ earning_info.fee_structure.user_task_formula }} | 
+                    Treasury = {{ earning_info.fee_structure.treasury_cut }}
+                </p>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <h5><i class="bi bi-exclamation-triangle"></i> About Miner Earnings & Fee Structure</h5>
+                <p class="mb-2">This dashboard tracks <strong>task completions</strong>. For accurate earnings:</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Arbius Fee Structure (v5):</strong></p>
+                        <ul class="mb-2">
+                            <li><strong>Automine:</strong> {{ earning_info.fee_structure.automine_formula }}</li>
+                            <li><strong>User Tasks:</strong> {{ earning_info.fee_structure.user_task_formula }}</li>
+                            <li><strong>Treasury:</strong> {{ earning_info.fee_structure.treasury_cut }}</li>
+                            <li><strong>Model Fees:</strong> {{ earning_info.fee_structure.model_fees }}</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Earnings Sources:</strong></p>
+                        <ul class="mb-2">
+                            {% for source in earning_info.sources %}
+                            <li>{{ source }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                
                 <p class="mb-0">
                     <strong>For accurate earnings data:</strong> 
                     <a href="{{ earning_info.dune_dashboard }}" target="_blank" class="alert-link">
@@ -44,6 +77,7 @@
                     </a>
                 </p>
             </div>
+            {% endif %}
         </div>
     </div>
 
@@ -63,6 +97,15 @@
                         <div class="stat-number text-success">{{ total_unique_miners }}</div>
                         <div class="stat-label">Active Miners</div>
                     </div>
+                    {% if dune_available and total_distributed > 0 %}
+                    <div class="stat-item">
+                        <div class="stat-number text-warning">{{ total_distributed|floatformat:1 }}</div>
+                        <div class="stat-label">
+                            AIUS Distributed 
+                            <span class="badge bg-success ms-1">Real Data</span>
+                        </div>
+                    </div>
+                    {% endif %}
                     <div class="stat-item">
                         <div class="stat-number text-info">{{ avg_tasks_per_miner|floatformat:1 }}</div>
                         <div class="stat-label">Avg Tasks/Miner</div>
@@ -81,7 +124,7 @@
                                 <i class="bi bi-external-link"></i> Dune
                             </a>
                         </div>
-                        <div class="stat-label">Actual Earnings Data</div>
+                        <div class="stat-label">Full Analytics</div>
                     </div>
                 </div>
                 
@@ -126,7 +169,15 @@
                         <div class="miner-stats">
                             <div class="miner-stat-primary">{{ miner.total_tasks_completed }} tasks</div>
                             <div class="miner-stat-secondary">
-                                <span class="text-muted small">Earnings: Complex calculation</span>
+                                {% if miner.has_real_data %}
+                                    <span class="text-success">{{ miner.earnings_display.amount|floatformat:1 }} AIUS</span>
+                                    <span class="badge bg-success ms-1" title="{{ miner.earnings_display.note }}">Real Data</span>
+                                {% else %}
+                                    <span class="text-muted" title="{{ miner.earnings_display.note }}">
+                                        ~{{ miner.earnings_display.amount|floatformat:1 }} AIUS
+                                    </span>
+                                    <span class="badge bg-secondary ms-1">Estimated</span>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -204,9 +255,15 @@
                                 </td>
                                 <td><span class="badge bg-primary">{{ miner.total_tasks_completed }}</span></td>
                                 <td>
-                                    <span class="text-muted small" title="{{ miner.earnings_range.note }}">
-                                        ~{{ miner.earnings_range.min|floatformat:1 }}-{{ miner.earnings_range.max|floatformat:1 }} AIUS*
-                                    </span>
+                                    {% if miner.has_real_data %}
+                                        <span class="text-success">{{ miner.earnings_display.amount|floatformat:1 }} AIUS</span>
+                                        <span class="badge bg-success ms-1" title="{{ miner.earnings_display.note }}">Real Data</span>
+                                    {% else %}
+                                        <span class="text-muted" title="{{ miner.earnings_display.note }}">
+                                            ~{{ miner.earnings_display.amount|floatformat:1 }} AIUS
+                                        </span>
+                                        <span class="badge bg-secondary ms-1">Estimated</span>
+                                    {% endif %}
                                 </td>
                                 <td>{{ miner.active_days }}</td>
                                 <td>{{ miner.avg_tasks_per_day|floatformat:2 }}</td>
@@ -234,7 +291,12 @@
                         </tbody>
                     </table>
                     <div class="text-muted small mt-2">
-                        * Earnings range is a rough estimate. Actual earnings depend on task rewards (which decrease over time), task fees, and model-specific factors.
+                        {% if dune_available %}
+                            Real earnings shown where available from Dune Analytics. Estimates shown for remaining miners based on task completion and fee structure.
+                        {% else %}
+                            * Earnings are estimated based on task completion and fee structure. For actual earnings, see the 
+                            <a href="{{ earning_info.dune_dashboard }}" target="_blank">Dune Analytics Dashboard</a>.
+                        {% endif %}
                     </div>
                 </div>
             </div>

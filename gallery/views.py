@@ -19,6 +19,7 @@ import logging
 from .models import ArbiusImage, UserProfile, ImageUpvote, ImageComment, MinerAddress
 from .middleware import require_wallet_auth, get_display_name_for_wallet
 from .crypto_utils import generate_auth_nonce, verify_wallet_signature, create_auth_message
+from .dune_service import dune_service
 
 
 def get_display_name_for_wallet(wallet_address):
@@ -852,6 +853,18 @@ def mining_dashboard(request):
     # Get current user's wallet address
     current_wallet_address = getattr(request, 'wallet_address', None)
     
+    # Try to get real earnings data from Dune Analytics
+    dune_data = None
+    dune_available = False
+    
+    if dune_service.is_available():
+        try:
+            dune_data = dune_service.get_miner_earnings_data()
+            dune_available = True
+            logger.info("Successfully integrated Dune Analytics data")
+        except Exception as e:
+            logger.warning(f"Failed to fetch Dune data: {e}")
+    
     # Get all miners with their statistics
     miners_stats = ArbiusImage.objects.values('solution_provider').annotate(
         total_tasks_completed=Count('id'),
@@ -864,10 +877,8 @@ def mining_dashboard(request):
         solution_provider='0x0000000000000000000000000000000000000000'
     ).order_by('-total_tasks_completed')
     
-    # Enhanced miner statistics with more accurate information
+    # Enhanced miner statistics with Dune data integration
     for miner in miners_stats:
-        # Remove the inaccurate 1 AIUS per task assumption
-        # Instead, we'll show task count and note that actual earnings are complex
         miner['display_name'] = get_display_name_for_wallet(miner['solution_provider'])
         miner['short_address'] = f"{miner['solution_provider'][:8]}...{miner['solution_provider'][-8:]}"
         
@@ -880,17 +891,45 @@ def mining_dashboard(request):
             miner['active_days'] = 0
             miner['avg_tasks_per_day'] = 0
         
-        # Calculate potential earnings range (very rough estimate)
-        # Based on v5 fee structure: miners get task rewards + 90% of task fees
-        # Task rewards are dynamic and decrease over time (halving mechanism)
-        # This is just for display purposes to give users an idea
-        min_estimate = miner['total_tasks_completed'] * 0.1  # Conservative estimate
-        max_estimate = miner['total_tasks_completed'] * 2.0  # Higher estimate for early period
-        miner['earnings_range'] = {
-            'min': min_estimate,
-            'max': max_estimate,
-            'note': 'Rough estimate - actual earnings depend on task rewards (which decrease over time), task fees, and model type'
-        }
+        # Try to get real earnings from Dune Analytics
+        real_earnings = None
+        if dune_data and dune_available:
+            real_earnings = dune_service.get_miner_earnings_by_address(miner['solution_provider'])
+        
+        if real_earnings is not None:
+            # Use real Dune data
+            miner['actual_earnings'] = real_earnings
+            miner['earnings_source'] = 'dune_analytics'
+            miner['has_real_data'] = True
+        else:
+            # Fall back to estimates with improved calculation based on fee structure
+            # Based on your clarification:
+            # - Automine: task fee - model fee  
+            # - User task: full task fee
+            # - ~10% of all fees go to treasury
+            
+            # Conservative estimate: assume mix of automine and user tasks
+            # Automine typically has lower net rewards (task fee - model fee)
+            # User tasks have full task fee, minus 10% to treasury
+            
+            estimated_earnings = miner['total_tasks_completed'] * 0.3  # More conservative estimate
+            miner['estimated_earnings'] = estimated_earnings
+            miner['earnings_source'] = 'estimated'
+            miner['has_real_data'] = False
+        
+        # Create earnings display
+        if miner.get('has_real_data'):
+            miner['earnings_display'] = {
+                'amount': miner['actual_earnings'],
+                'type': 'actual',
+                'note': 'Real earnings from Dune Analytics'
+            }
+        else:
+            miner['earnings_display'] = {
+                'amount': miner['estimated_earnings'],
+                'type': 'estimated', 
+                'note': 'Estimated based on task completion (actual earnings available on Dune)'
+            }
     
     # Get total network statistics
     total_tasks = ArbiusImage.objects.count()
@@ -900,8 +939,15 @@ def mining_dashboard(request):
         solution_provider='0x0000000000000000000000000000000000000000'
     ).values('solution_provider').distinct().count()
     
-    # Remove the misleading total estimated rewards calculation
-    # Instead provide context about earning complexity
+    # Calculate total distributed (real vs estimated)
+    total_distributed = 0
+    if dune_data and 'total_distributed' in dune_data:
+        total_distributed = dune_data['total_distributed']
+        total_distributed_source = 'dune_analytics'
+    else:
+        # Fallback estimate
+        total_distributed = sum(m.get('estimated_earnings', 0) for m in miners_stats)
+        total_distributed_source = 'estimated'
     
     # Get mining activity over time (daily)
     mining_activity_daily = ArbiusImage.objects.filter(
@@ -1008,7 +1054,15 @@ def mining_dashboard(request):
         'miners': [activity['unique_miners'] for activity in mining_activity_hourly]
     }
     
-    # Add information about earning complexity for the template
+    # Enhanced information about earning complexity and fee structure
+    fee_structure_info = {
+        'automine_formula': 'Task Fee - Model Fee',
+        'user_task_formula': 'Full Task Fee',
+        'treasury_cut': '~10% of all fees',
+        'model_fees': 'All model fees go to treasury',
+        'complexity_note': 'Actual earnings depend on the mix of automine vs user tasks, task fees, model fees, and time period'
+    }
+    
     earning_info = {
         'sources': [
             'Task Rewards (newly minted AIUS - decreases over time via halving)',
@@ -1020,15 +1074,20 @@ def mining_dashboard(request):
             'Task rewards follow continuous halving mechanism',
             'Only certain models are eligible for mining rewards',
             'Early miners likely earned more due to higher initial rewards',
-            'Actual earnings require on-chain transaction analysis'
+            'Automine vs user task ratio affects total earnings'
         ],
-        'dune_dashboard': 'https://dune.com/missingno69420/arbius'
+        'fee_structure': fee_structure_info,
+        'dune_dashboard': 'https://dune.com/missingno69420/arbius',
+        'dune_available': dune_available,
+        'dune_integration': dune_available
     }
     
     context = {
         'miners_stats': miners_stats,
         'total_tasks': total_tasks,
         'total_unique_miners': total_unique_miners,
+        'total_distributed': total_distributed,
+        'total_distributed_source': total_distributed_source,
         'top_miners_by_volume': top_miners_by_volume,
         'top_miners_by_consistency': top_miners_by_consistency,
         'recent_mining_activity': recent_mining_activity,
@@ -1039,6 +1098,7 @@ def mining_dashboard(request):
         'daily_chart_data': daily_chart_data,
         'hourly_chart_data': hourly_chart_data,
         'earning_info': earning_info,
+        'dune_available': dune_available,
         'wallet_address': current_wallet_address,
         'user_profile': getattr(request, 'user_profile', None),
     }
