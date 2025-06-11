@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
+from gallery import views as gallery_views
 
 def redirect_to_gallery(request):
     return redirect('gallery:index')
@@ -24,5 +25,9 @@ def redirect_to_gallery(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', redirect_to_gallery, name='home'),
+    
+    # Hidden mining dashboard - accessible directly at /dashboard
+    path('dashboard/', gallery_views.mining_dashboard, name='mining_dashboard'),
+    
     path('gallery/', include('gallery.urls')),
 ]
