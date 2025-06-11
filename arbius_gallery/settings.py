@@ -182,8 +182,8 @@ SESSION_COOKIE_SAMESITE = 'Strict'
 SECURE_REFERRER_POLICY = 'same-origin'
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
 
-# Rate Limiting Configuration
-RATELIMIT_ENABLE = not DEBUG  # Disable rate limiting in development
+# Rate Limiting Configuration - Disabled to avoid cache issues
+RATELIMIT_ENABLE = False  # Disable rate limiting completely
 RATELIMIT_USE_CACHE = 'default'
 
 # Cache configuration - use database cache for production, locmem for development
