@@ -864,9 +864,10 @@ def mining_dashboard(request):
         solution_provider='0x0000000000000000000000000000000000000000'
     ).order_by('-total_tasks_completed')
     
-    # Calculate total rewards (based on task completion, assuming 1 AIUS per task)
+    # Enhanced miner statistics with more accurate information
     for miner in miners_stats:
-        miner['estimated_rewards'] = miner['total_tasks_completed'] * 1.0  # 1 AIUS per task
+        # Remove the inaccurate 1 AIUS per task assumption
+        # Instead, we'll show task count and note that actual earnings are complex
         miner['display_name'] = get_display_name_for_wallet(miner['solution_provider'])
         miner['short_address'] = f"{miner['solution_provider'][:8]}...{miner['solution_provider'][-8:]}"
         
@@ -878,6 +879,18 @@ def mining_dashboard(request):
         else:
             miner['active_days'] = 0
             miner['avg_tasks_per_day'] = 0
+        
+        # Calculate potential earnings range (very rough estimate)
+        # Based on v5 fee structure: miners get task rewards + 90% of task fees
+        # Task rewards are dynamic and decrease over time (halving mechanism)
+        # This is just for display purposes to give users an idea
+        min_estimate = miner['total_tasks_completed'] * 0.1  # Conservative estimate
+        max_estimate = miner['total_tasks_completed'] * 2.0  # Higher estimate for early period
+        miner['earnings_range'] = {
+            'min': min_estimate,
+            'max': max_estimate,
+            'note': 'Rough estimate - actual earnings depend on task rewards (which decrease over time), task fees, and model type'
+        }
     
     # Get total network statistics
     total_tasks = ArbiusImage.objects.count()
@@ -887,7 +900,8 @@ def mining_dashboard(request):
         solution_provider='0x0000000000000000000000000000000000000000'
     ).values('solution_provider').distinct().count()
     
-    total_estimated_rewards = total_tasks * 1.0  # 1 AIUS per task
+    # Remove the misleading total estimated rewards calculation
+    # Instead provide context about earning complexity
     
     # Get mining activity over time (daily)
     mining_activity_daily = ArbiusImage.objects.filter(
@@ -994,11 +1008,27 @@ def mining_dashboard(request):
         'miners': [activity['unique_miners'] for activity in mining_activity_hourly]
     }
     
+    # Add information about earning complexity for the template
+    earning_info = {
+        'sources': [
+            'Task Rewards (newly minted AIUS - decreases over time via halving)',
+            'Task Fees (90% to miners, 10% to DAO in v5)',  
+            'IPFS Incentive Fees (for data pinning)',
+            'Model-specific earnings (varies by model and governance)'
+        ],
+        'factors': [
+            'Task rewards follow continuous halving mechanism',
+            'Only certain models are eligible for mining rewards',
+            'Early miners likely earned more due to higher initial rewards',
+            'Actual earnings require on-chain transaction analysis'
+        ],
+        'dune_dashboard': 'https://dune.com/missingno69420/arbius'
+    }
+    
     context = {
         'miners_stats': miners_stats,
         'total_tasks': total_tasks,
         'total_unique_miners': total_unique_miners,
-        'total_estimated_rewards': total_estimated_rewards,
         'top_miners_by_volume': top_miners_by_volume,
         'top_miners_by_consistency': top_miners_by_consistency,
         'recent_mining_activity': recent_mining_activity,
@@ -1008,6 +1038,7 @@ def mining_dashboard(request):
         'monthly_stats': monthly_stats,
         'daily_chart_data': daily_chart_data,
         'hourly_chart_data': hourly_chart_data,
+        'earning_info': earning_info,
         'wallet_address': current_wallet_address,
         'user_profile': getattr(request, 'user_profile', None),
     }

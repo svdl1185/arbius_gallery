@@ -14,6 +14,36 @@
             <span class="badge bg-warning text-dark">
                 <i class="bi bi-eye-slash"></i> Hidden Dashboard
             </span>
+            <span class="badge bg-info text-dark ms-2">
+                <i class="bi bi-info-circle"></i> Task Completion Tracking
+            </span>
+        </div>
+    </div>
+
+    <!-- Earnings Disclaimer -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h5><i class="bi bi-exclamation-triangle"></i> Important: About Miner Earnings</h5>
+                <p class="mb-2">This dashboard tracks <strong>task completions</strong>, not actual earnings. Miner earnings are complex and include:</p>
+                <ul class="mb-2">
+                    {% for source in earning_info.sources %}
+                    <li>{{ source }}</li>
+                    {% endfor %}
+                </ul>
+                <p class="mb-2"><strong>Key factors affecting earnings:</strong></p>
+                <ul class="mb-3">
+                    {% for factor in earning_info.factors %}
+                    <li>{{ factor }}</li>
+                    {% endfor %}
+                </ul>
+                <p class="mb-0">
+                    <strong>For accurate earnings data:</strong> 
+                    <a href="{{ earning_info.dune_dashboard }}" target="_blank" class="alert-link">
+                        <i class="bi bi-external-link"></i> Check the Dune Analytics Dashboard
+                    </a>
+                </p>
+            </div>
         </div>
     </div>
 
@@ -34,10 +64,6 @@
                         <div class="stat-label">Active Miners</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number text-warning">{{ total_estimated_rewards|floatformat:1 }}</div>
-                        <div class="stat-label">AIUS Distributed</div>
-                    </div>
-                    <div class="stat-item">
                         <div class="stat-number text-info">{{ avg_tasks_per_miner|floatformat:1 }}</div>
                         <div class="stat-label">Avg Tasks/Miner</div>
                     </div>
@@ -48,6 +74,14 @@
                     <div class="stat-item">
                         <div class="stat-number text-secondary">{{ monthly_stats.tasks_this_month }}</div>
                         <div class="stat-label">Tasks (30 Days)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number text-warning">
+                            <a href="{{ earning_info.dune_dashboard }}" target="_blank" class="text-warning text-decoration-none">
+                                <i class="bi bi-external-link"></i> Dune
+                            </a>
+                        </div>
+                        <div class="stat-label">Actual Earnings Data</div>
                     </div>
                 </div>
                 
@@ -91,7 +125,9 @@
                         </div>
                         <div class="miner-stats">
                             <div class="miner-stat-primary">{{ miner.total_tasks_completed }} tasks</div>
-                            <div class="miner-stat-secondary">~{{ miner.estimated_rewards|floatformat:1 }} AIUS</div>
+                            <div class="miner-stat-secondary">
+                                <span class="text-muted small">Earnings: Complex calculation</span>
+                            </div>
                         </div>
                     </div>
                     {% empty %}
@@ -134,6 +170,13 @@
                 <h3 class="mb-3">
                     <i class="bi bi-table"></i> All Miners Statistics
                 </h3>
+                <div class="alert alert-secondary">
+                    <small>
+                        <i class="bi bi-info-circle"></i> 
+                        This table shows task completion metrics only. For actual AIUS earnings, see the 
+                        <a href="{{ earning_info.dune_dashboard }}" target="_blank">Dune Analytics Dashboard</a>.
+                    </small>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-dark table-striped">
                         <thead>
@@ -141,7 +184,7 @@
                                 <th>Rank</th>
                                 <th>Miner</th>
                                 <th>Tasks Completed</th>
-                                <th>Est. Rewards (AIUS)</th>
+                                <th>Earnings Range</th>
                                 <th>Active Days</th>
                                 <th>Avg Tasks/Day</th>
                                 <th>Users Served</th>
@@ -160,7 +203,11 @@
                                     </div>
                                 </td>
                                 <td><span class="badge bg-primary">{{ miner.total_tasks_completed }}</span></td>
-                                <td><span class="badge bg-success">{{ miner.estimated_rewards|floatformat:1 }}</span></td>
+                                <td>
+                                    <span class="text-muted small" title="{{ miner.earnings_range.note }}">
+                                        ~{{ miner.earnings_range.min|floatformat:1 }}-{{ miner.earnings_range.max|floatformat:1 }} AIUS*
+                                    </span>
+                                </td>
                                 <td>{{ miner.active_days }}</td>
                                 <td>{{ miner.avg_tasks_per_day|floatformat:2 }}</td>
                                 <td>{{ miner.unique_submitters_served }}</td>
@@ -186,6 +233,9 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    <div class="text-muted small mt-2">
+                        * Earnings range is a rough estimate. Actual earnings depend on task rewards (which decrease over time), task fees, and model-specific factors.
+                    </div>
                 </div>
             </div>
         </div>
@@ -218,7 +268,9 @@
                             </div>
                         </div>
                         <div class="activity-reward">
-                            <span class="badge bg-success">+1.0 AIUS</span>
+                            <span class="badge bg-info" title="Actual reward depends on multiple factors">
+                                Variable AIUS
+                            </span>
                         </div>
                     </div>
                     {% empty %}
