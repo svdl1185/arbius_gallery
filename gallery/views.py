@@ -1,16 +1,17 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, Http404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib import messages
-from django.db.models import Count, Q, Avg, Min, Max
+from django.db.models import Count, Q, Avg, Min, Max, Case, When, IntegerField, Exists, OuterRef
 from django.core.paginator import Paginator
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.utils import timezone
 from django.urls import reverse
 from django.conf import settings
+from datetime import datetime, timedelta
 # from django_ratelimit.decorators import ratelimit  # Removed
 import json
 import logging
