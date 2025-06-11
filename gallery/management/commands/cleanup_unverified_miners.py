@@ -59,10 +59,10 @@ class Command(BaseCommand):
             
             try:
                 self.stdout.write(f"🔎 Scanning blocks {start_block:,} - {end_block:,}...")
-                solutions = scanner.get_solution_submissions(start_block, end_block)
+                miners_in_chunk = scanner.identify_miners_in_range(start_block, end_block)
                 
-                for solution in solutions:
-                    verified_miners.add(solution['solver'].lower())
+                for miner in miners_in_chunk:
+                    verified_miners.add(miner.lower())
                 
                 self.stdout.write(f"   Found {len(verified_miners)} unique verified miners so far")
                 
