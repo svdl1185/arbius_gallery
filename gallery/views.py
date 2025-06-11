@@ -842,3 +842,159 @@ def top_users(request):
     }
     
     return render(request, 'gallery/top_users.html', context)
+
+
+def mining_dashboard(request):
+    """Hidden mining analytics dashboard - only accessible via direct URL"""
+    from django.db.models import Sum, Count, Avg, F, Q
+    from django.db.models.functions import TruncDate, TruncHour
+    
+    # Get current user's wallet address
+    current_wallet_address = getattr(request, 'wallet_address', None)
+    
+    # Get all miners with their statistics
+    miners_stats = ArbiusImage.objects.values('solution_provider').annotate(
+        total_tasks_completed=Count('id'),
+        first_task=Min('timestamp'),
+        last_task=Max('timestamp'),
+        unique_submitters_served=Count('task_submitter', distinct=True)
+    ).filter(
+        solution_provider__isnull=False,
+        solution_provider__ne='0x0000000000000000000000000000000000000000'
+    ).order_by('-total_tasks_completed')
+    
+    # Calculate total rewards (based on task completion, assuming 1 AIUS per task)
+    for miner in miners_stats:
+        miner['estimated_rewards'] = miner['total_tasks_completed'] * 1.0  # 1 AIUS per task
+        miner['display_name'] = get_display_name_for_wallet(miner['solution_provider'])
+        miner['short_address'] = f"{miner['solution_provider'][:8]}...{miner['solution_provider'][-8:]}"
+        
+        # Calculate active days
+        if miner['first_task'] and miner['last_task']:
+            active_days = (miner['last_task'] - miner['first_task']).days + 1
+            miner['active_days'] = active_days
+            miner['avg_tasks_per_day'] = round(miner['total_tasks_completed'] / max(active_days, 1), 2)
+        else:
+            miner['active_days'] = 0
+            miner['avg_tasks_per_day'] = 0
+    
+    # Get total network statistics
+    total_tasks = ArbiusImage.objects.count()
+    total_unique_miners = ArbiusImage.objects.filter(
+        solution_provider__isnull=False,
+        solution_provider__ne='0x0000000000000000000000000000000000000000'
+    ).values('solution_provider').distinct().count()
+    
+    total_estimated_rewards = total_tasks * 1.0  # 1 AIUS per task
+    
+    # Get mining activity over time (daily)
+    mining_activity_daily = ArbiusImage.objects.filter(
+        solution_provider__isnull=False,
+        solution_provider__ne='0x0000000000000000000000000000000000000000'
+    ).annotate(
+        date=TruncDate('timestamp')
+    ).values('date').annotate(
+        tasks_completed=Count('id'),
+        unique_miners=Count('solution_provider', distinct=True)
+    ).order_by('date')
+    
+    # Get hourly mining activity for the last 48 hours
+    last_48_hours = timezone.now() - timedelta(hours=48)
+    mining_activity_hourly = ArbiusImage.objects.filter(
+        solution_provider__isnull=False,
+        solution_provider__ne='0x0000000000000000000000000000000000000000',
+        timestamp__gte=last_48_hours
+    ).annotate(
+        hour=TruncHour('timestamp')
+    ).values('hour').annotate(
+        tasks_completed=Count('id'),
+        unique_miners=Count('solution_provider', distinct=True)
+    ).order_by('hour')
+    
+    # Get top miners by different metrics
+    top_miners_by_volume = list(miners_stats[:10])
+    top_miners_by_consistency = sorted(
+        [m for m in miners_stats if m['active_days'] > 0],
+        key=lambda x: x['avg_tasks_per_day'],
+        reverse=True
+    )[:10]
+    
+    # Get recent mining activity
+    recent_mining_activity = ArbiusImage.objects.filter(
+        solution_provider__isnull=False,
+        solution_provider__ne='0x0000000000000000000000000000000000000000'
+    ).select_related().order_by('-timestamp')[:20]
+    
+    # Add display names for recent activity
+    for activity in recent_mining_activity:
+        activity.miner_display_name = get_display_name_for_wallet(activity.solution_provider)
+        activity.submitter_display_name = get_display_name_for_wallet(activity.task_submitter)
+    
+    # Get mining distribution by model
+    mining_by_model = ArbiusImage.objects.values('model_id').annotate(
+        total_tasks=Count('id'),
+        unique_miners=Count('solution_provider', distinct=True)
+    ).filter(
+        solution_provider__isnull=False,
+        solution_provider__ne='0x0000000000000000000000000000000000000000'
+    ).order_by('-total_tasks')
+    
+    # Calculate mining efficiency metrics
+    avg_tasks_per_miner = round(total_tasks / max(total_unique_miners, 1), 2)
+    
+    # Get weekly mining statistics
+    one_week_ago = timezone.now() - timedelta(days=7)
+    weekly_stats = ArbiusImage.objects.filter(
+        solution_provider__isnull=False,
+        solution_provider__ne='0x0000000000000000000000000000000000000000',
+        timestamp__gte=one_week_ago
+    ).aggregate(
+        tasks_this_week=Count('id'),
+        unique_miners_this_week=Count('solution_provider', distinct=True),
+        unique_submitters_this_week=Count('task_submitter', distinct=True)
+    )
+    
+    # Get monthly mining statistics
+    one_month_ago = timezone.now() - timedelta(days=30)
+    monthly_stats = ArbiusImage.objects.filter(
+        solution_provider__isnull=False,
+        solution_provider__ne='0x0000000000000000000000000000000000000000',
+        timestamp__gte=one_month_ago
+    ).aggregate(
+        tasks_this_month=Count('id'),
+        unique_miners_this_month=Count('solution_provider', distinct=True),
+        unique_submitters_this_month=Count('task_submitter', distinct=True)
+    )
+    
+    # Prepare chart data
+    daily_chart_data = {
+        'labels': [activity['date'].strftime('%Y-%m-%d') for activity in mining_activity_daily],
+        'tasks': [activity['tasks_completed'] for activity in mining_activity_daily],
+        'miners': [activity['unique_miners'] for activity in mining_activity_daily]
+    }
+    
+    hourly_chart_data = {
+        'labels': [activity['hour'].strftime('%m-%d %H:00') for activity in mining_activity_hourly],
+        'tasks': [activity['tasks_completed'] for activity in mining_activity_hourly],
+        'miners': [activity['unique_miners'] for activity in mining_activity_hourly]
+    }
+    
+    context = {
+        'miners_stats': miners_stats,
+        'total_tasks': total_tasks,
+        'total_unique_miners': total_unique_miners,
+        'total_estimated_rewards': total_estimated_rewards,
+        'top_miners_by_volume': top_miners_by_volume,
+        'top_miners_by_consistency': top_miners_by_consistency,
+        'recent_mining_activity': recent_mining_activity,
+        'mining_by_model': mining_by_model,
+        'avg_tasks_per_miner': avg_tasks_per_miner,
+        'weekly_stats': weekly_stats,
+        'monthly_stats': monthly_stats,
+        'daily_chart_data': daily_chart_data,
+        'hourly_chart_data': hourly_chart_data,
+        'wallet_address': current_wallet_address,
+        'user_profile': getattr(request, 'user_profile', None),
+    }
+    
+    return render(request, 'gallery/mining_dashboard.html', context)
