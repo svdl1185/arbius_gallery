@@ -859,8 +859,9 @@ def mining_dashboard(request):
         last_task=Max('timestamp'),
         unique_submitters_served=Count('task_submitter', distinct=True)
     ).filter(
-        solution_provider__isnull=False,
-        solution_provider__ne='0x0000000000000000000000000000000000000000'
+        solution_provider__isnull=False
+    ).exclude(
+        solution_provider='0x0000000000000000000000000000000000000000'
     ).order_by('-total_tasks_completed')
     
     # Calculate total rewards (based on task completion, assuming 1 AIUS per task)
@@ -881,16 +882,18 @@ def mining_dashboard(request):
     # Get total network statistics
     total_tasks = ArbiusImage.objects.count()
     total_unique_miners = ArbiusImage.objects.filter(
-        solution_provider__isnull=False,
-        solution_provider__ne='0x0000000000000000000000000000000000000000'
+        solution_provider__isnull=False
+    ).exclude(
+        solution_provider='0x0000000000000000000000000000000000000000'
     ).values('solution_provider').distinct().count()
     
     total_estimated_rewards = total_tasks * 1.0  # 1 AIUS per task
     
     # Get mining activity over time (daily)
     mining_activity_daily = ArbiusImage.objects.filter(
-        solution_provider__isnull=False,
-        solution_provider__ne='0x0000000000000000000000000000000000000000'
+        solution_provider__isnull=False
+    ).exclude(
+        solution_provider='0x0000000000000000000000000000000000000000'
     ).annotate(
         date=TruncDate('timestamp')
     ).values('date').annotate(
@@ -902,8 +905,9 @@ def mining_dashboard(request):
     last_48_hours = timezone.now() - timedelta(hours=48)
     mining_activity_hourly = ArbiusImage.objects.filter(
         solution_provider__isnull=False,
-        solution_provider__ne='0x0000000000000000000000000000000000000000',
         timestamp__gte=last_48_hours
+    ).exclude(
+        solution_provider='0x0000000000000000000000000000000000000000'
     ).annotate(
         hour=TruncHour('timestamp')
     ).values('hour').annotate(
@@ -921,8 +925,9 @@ def mining_dashboard(request):
     
     # Get recent mining activity
     recent_mining_activity = ArbiusImage.objects.filter(
-        solution_provider__isnull=False,
-        solution_provider__ne='0x0000000000000000000000000000000000000000'
+        solution_provider__isnull=False
+    ).exclude(
+        solution_provider='0x0000000000000000000000000000000000000000'
     ).select_related().order_by('-timestamp')[:20]
     
     # Add display names for recent activity
@@ -935,8 +940,9 @@ def mining_dashboard(request):
         total_tasks=Count('id'),
         unique_miners=Count('solution_provider', distinct=True)
     ).filter(
-        solution_provider__isnull=False,
-        solution_provider__ne='0x0000000000000000000000000000000000000000'
+        solution_provider__isnull=False
+    ).exclude(
+        solution_provider='0x0000000000000000000000000000000000000000'
     ).order_by('-total_tasks')
     
     # Calculate mining efficiency metrics
@@ -946,8 +952,9 @@ def mining_dashboard(request):
     one_week_ago = timezone.now() - timedelta(days=7)
     weekly_stats = ArbiusImage.objects.filter(
         solution_provider__isnull=False,
-        solution_provider__ne='0x0000000000000000000000000000000000000000',
         timestamp__gte=one_week_ago
+    ).exclude(
+        solution_provider='0x0000000000000000000000000000000000000000'
     ).aggregate(
         tasks_this_week=Count('id'),
         unique_miners_this_week=Count('solution_provider', distinct=True),
@@ -958,8 +965,9 @@ def mining_dashboard(request):
     one_month_ago = timezone.now() - timedelta(days=30)
     monthly_stats = ArbiusImage.objects.filter(
         solution_provider__isnull=False,
-        solution_provider__ne='0x0000000000000000000000000000000000000000',
         timestamp__gte=one_month_ago
+    ).exclude(
+        solution_provider='0x0000000000000000000000000000000000000000'
     ).aggregate(
         tasks_this_month=Count('id'),
         unique_miners_this_month=Count('solution_provider', distinct=True),
