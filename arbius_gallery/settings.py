@@ -41,8 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
-    'django_ratelimit',
     'gallery',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -182,9 +182,8 @@ SESSION_COOKIE_SAMESITE = 'Strict'
 SECURE_REFERRER_POLICY = 'same-origin'
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
 
-# Rate Limiting Configuration - Disabled to avoid cache issues
-RATELIMIT_ENABLE = False  # Disable rate limiting completely
-RATELIMIT_USE_CACHE = 'default'
+# Rate Limiting Configuration - Completely disabled to avoid cache issues
+RATELIMIT_ENABLE = False
 
 # Cache configuration - use database cache for production, locmem for development
 if 'DATABASE_URL' in os.environ:

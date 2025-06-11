@@ -1,15 +1,19 @@
-from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse, Http404
-from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
-from django.views.decorators.http import require_http_methods, require_POST
-from django.db.models import Q, Count, Case, When, IntegerField, Exists, OuterRef
-from django.db.models.functions import Length
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
+from django.contrib import messages
+from django.db.models import Count, Q, Avg, Min, Max
 from django.core.paginator import Paginator
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from datetime import datetime, timedelta
+from django.urls import reverse
+from django.conf import settings
+# from django_ratelimit.decorators import ratelimit  # Removed
 import json
 import logging
-from django_ratelimit.decorators import ratelimit
 
 from .models import ArbiusImage, UserProfile, ImageUpvote, ImageComment, MinerAddress
 from .middleware import require_wallet_auth, get_display_name_for_wallet
@@ -428,7 +432,6 @@ def info(request):
 
 # === Web3 Authentication Views ===
 
-@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 @csrf_exempt
 @require_POST
 def get_auth_nonce(request):
@@ -464,9 +467,8 @@ def get_auth_nonce(request):
         return JsonResponse({'error': 'Internal server error'}, status=500)
 
 
-@ratelimit(key='ip', rate='5/m', method='POST', block=True)
-@require_POST  
-@ensure_csrf_cookie
+@csrf_exempt
+@require_POST
 def connect_wallet(request):
     """Handle secure wallet connection with signature verification"""
     try:
@@ -518,8 +520,8 @@ def connect_wallet(request):
         return JsonResponse({'error': 'Internal server error'}, status=500)
 
 
+@csrf_exempt
 @require_POST
-@ensure_csrf_cookie
 def disconnect_wallet(request):
     """Handle wallet disconnection with session cleanup"""
     try:
@@ -539,10 +541,8 @@ def disconnect_wallet(request):
 
 # === Social Feature Views ===
 
-@ratelimit(key='user_or_ip', rate='30/m', method='POST', block=True)
+@csrf_exempt
 @require_POST
-@ensure_csrf_cookie
-@require_wallet_auth
 def toggle_upvote(request, image_id):
     """Toggle upvote on an image"""
     try:
@@ -580,10 +580,8 @@ def toggle_upvote(request, image_id):
         return JsonResponse({'error': 'Internal server error'}, status=500)
 
 
-@ratelimit(key='user_or_ip', rate='10/m', method='POST', block=True)
+@csrf_exempt
 @require_POST
-@ensure_csrf_cookie
-@require_wallet_auth
 def add_comment(request, image_id):
     """Add a comment to an image"""
     try:
@@ -699,10 +697,8 @@ def user_profile(request, wallet_address):
     return render(request, 'gallery/user_profile.html', context)
 
 
-@ratelimit(key='user_or_ip', rate='5/m', method='POST', block=True)
+@csrf_exempt
 @require_POST
-@ensure_csrf_cookie
-@require_wallet_auth
 def update_profile(request):
     """Update user profile information"""
     try:
