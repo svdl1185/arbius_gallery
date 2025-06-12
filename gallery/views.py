@@ -1044,6 +1044,85 @@ def mining_dashboard(request):
         unique_submitters_this_month=Count('task_submitter', distinct=True)
     )
     
+    # NEW: AIUS Token Sales and Profit Analysis
+    # Current market data from search results
+    current_aius_price = 14.44  # USD from CoinMarketCap
+    market_cap = 4200000  # $4.2M
+    circulating_supply = 290970  # ~291K AIUS
+    total_supply = 1000000  # 1M max supply
+    daily_volume = 16321  # $16.3K 24h volume
+    
+    # Historical price data (from search results)
+    all_time_high = 1086.68  # Feb 19, 2024
+    all_time_low = 12.04     # May 31, 2025
+    
+    # Calculate token sales analysis for miners
+    token_sales_analysis = {
+        'current_market': {
+            'price_usd': current_aius_price,
+            'market_cap': market_cap,
+            'circulating_supply': circulating_supply,
+            'daily_volume': daily_volume,
+            'volume_to_mcap_ratio': round((daily_volume / market_cap) * 100, 3),
+        },
+        'price_history': {
+            'all_time_high': all_time_high,
+            'all_time_low': all_time_low,
+            'current_vs_ath': round(((current_aius_price - all_time_high) / all_time_high) * 100, 2),
+            'current_vs_atl': round(((current_aius_price - all_time_low) / all_time_low) * 100, 2),
+        },
+        'miner_scenarios': {
+            'early_miner_ath': {
+                'description': 'Early miner who sold at ATH',
+                'earnings_1000_aius': 1000 * all_time_high,
+                'vs_current_price': round(((all_time_high - current_aius_price) / current_aius_price) * 100, 1),
+            },
+            'current_holder': {
+                'description': 'Miner holding at current price',
+                'earnings_1000_aius': 1000 * current_aius_price,
+                'potential_if_ath_returns': 1000 * all_time_high,
+            },
+            'dca_seller': {
+                'description': 'Miner selling regularly (DCA)',
+                'avg_price_estimate': (all_time_high + current_aius_price) / 2,
+                'earnings_1000_aius': 1000 * ((all_time_high + current_aius_price) / 2),
+            }
+        },
+        'trading_venues': [
+            {'name': 'Uniswap v3 (Arbitrum)', 'volume_24h': 12383, 'price': 14.41},
+            {'name': 'Uniswap v3 (Ethereum)', 'volume_24h': 11593, 'price': 14.63},
+            {'name': 'Uniswap v2 (Ethereum)', 'volume_24h': 10438, 'price': 14.57},
+            {'name': 'CoinEx', 'volume_24h': 3416, 'price': 14.52},
+        ],
+        'liquidity_analysis': {
+            'total_24h_volume': daily_volume,
+            'largest_venue': 'Uniswap v3 (Arbitrum)',
+            'decentralized_dominance': round(((12383 + 11593 + 10438) / daily_volume) * 100, 1),
+            'note': 'Most trading happens on DEXs, indicating decentralized market'
+        }
+    }
+    
+    # Enhanced miner profit analysis
+    for miner in miners_stats:
+        # Estimate potential AIUS earned (conservative)
+        estimated_aius_earned = miner.get('estimated_earnings', 0)
+        
+        # Calculate different selling scenarios
+        miner['profit_scenarios'] = {
+            'if_sold_at_ath': {
+                'total_usd': estimated_aius_earned * all_time_high,
+                'profit_multiple': round(all_time_high / current_aius_price, 1),
+            },
+            'if_selling_now': {
+                'total_usd': estimated_aius_earned * current_aius_price,
+                'vs_ath_loss': round(((current_aius_price - all_time_high) / all_time_high) * 100, 1),
+            },
+            'if_dca_selling': {
+                'avg_price': (all_time_high + current_aius_price) / 2,
+                'total_usd': estimated_aius_earned * ((all_time_high + current_aius_price) / 2),
+            }
+        }
+    
     # Prepare chart data
     daily_chart_data = {
         'labels': [activity['date'].strftime('%Y-%m-%d') for activity in mining_activity_daily],
@@ -1102,6 +1181,7 @@ def mining_dashboard(request):
         'hourly_chart_data': hourly_chart_data,
         'earning_info': earning_info,
         'dune_available': dune_available,
+        'token_sales_analysis': token_sales_analysis,  # NEW
         'wallet_address': current_wallet_address,
         'user_profile': getattr(request, 'user_profile', None),
     }
