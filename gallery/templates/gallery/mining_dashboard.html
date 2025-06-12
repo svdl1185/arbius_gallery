@@ -61,7 +61,11 @@
                             <tr>
                                 <td>
                                     <div>{{ miner.display_name }}</div>
-                                    <small class="text-muted">{{ miner.short_address }}</small>
+                                    <small class="text-muted">
+                                        <a href="https://arbiscan.io/address/{{ miner.solution_provider }}" target="_blank" class="address-link">
+                                            {{ miner.short_address }}
+                                        </a>
+                                    </small>
                                 </td>
                                 <td>{{ miner.total_tasks_completed }}</td>
                                 <td>{{ miner.first_task_formatted }}</td>
@@ -111,6 +115,7 @@
                                 <th>Task Submitter</th>
                                 <th>Prompt</th>
                                 <th>Model</th>
+                                <th>Transaction</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -120,10 +125,18 @@
                                     <small>{{ activity.timestamp|date:"M d, H:i" }}</small>
                                 </td>
                                 <td>
-                                    <small>{{ activity.miner_display_name }}</small>
+                                    <small>
+                                        <a href="https://arbiscan.io/address/{{ activity.solution_provider }}" target="_blank" class="address-link">
+                                            {{ activity.miner_display_name }}
+                                        </a>
+                                    </small>
                                 </td>
                                 <td>
-                                    <small>{{ activity.submitter_display_name }}</small>
+                                    <small>
+                                        <a href="https://arbiscan.io/address/{{ activity.task_submitter }}" target="_blank" class="address-link">
+                                            {{ activity.submitter_display_name }}
+                                        </a>
+                                    </small>
                                 </td>
                                 <td>
                                     <small>{{ activity.prompt_short }}</small>
@@ -131,10 +144,17 @@
                                 <td>
                                     <small>{{ activity.model_id|slice:":8" }}...</small>
                                 </td>
+                                <td>
+                                    <small>
+                                        <a href="https://arbiscan.io/tx/{{ activity.transaction_hash }}" target="_blank" class="address-link">
+                                            {{ activity.transaction_hash|slice:":8" }}...
+                                        </a>
+                                    </small>
+                                </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="5" class="text-center text-muted">
+                                <td colspan="6" class="text-center text-muted">
                                     No recent mining activity.
                                 </td>
                             </tr>
@@ -232,6 +252,26 @@
 .badge {
     font-size: 0.75rem;
     padding: 4px 8px;
+}
+
+/* Address and Transaction Links */
+.address-link {
+    color: #6c757d;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.address-link:hover {
+    color: #007bff;
+    text-decoration: underline;
+}
+
+.address-link:visited {
+    color: #6c757d;
+}
+
+.address-link:visited:hover {
+    color: #007bff;
 }
 </style>
 {% endblock %} 
