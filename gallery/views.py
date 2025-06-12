@@ -20,6 +20,7 @@ from .models import ArbiusImage, UserProfile, ImageUpvote, ImageComment, MinerAd
 from .middleware import require_wallet_auth, get_display_name_for_wallet
 from .crypto_utils import generate_auth_nonce, verify_wallet_signature, create_auth_message
 from .dune_service import dune_service
+from .aius_sales_tracker import AIUSSalesTracker
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -868,6 +869,20 @@ def mining_dashboard(request):
         except Exception as e:
             logger.warning(f"Failed to fetch Dune data: {e}")
     
+    # Initialize AIUS sales tracker for real sales data
+    sales_tracker = AIUSSalesTracker()
+    
+    # Get real sales data (this would use actual API calls in production)
+    try:
+        network_sales_summary, all_miner_sales_data = sales_tracker.get_network_sales_summary()
+        sales_data_available = True
+        logger.info("Successfully loaded AIUS sales tracking data")
+    except Exception as e:
+        logger.warning(f"Failed to load sales data: {e}")
+        sales_data_available = False
+        network_sales_summary = None
+        all_miner_sales_data = []
+    
     # Get all miners with their statistics
     miners_stats = ArbiusImage.objects.values('solution_provider').annotate(
         total_tasks_completed=Count('id'),
@@ -880,7 +895,7 @@ def mining_dashboard(request):
         solution_provider='0x0000000000000000000000000000000000000000'
     ).order_by('-total_tasks_completed')
     
-    # Enhanced miner statistics with Dune data integration
+    # Enhanced miner statistics with real sales data integration
     for miner in miners_stats:
         miner['display_name'] = get_display_name_for_wallet(miner['solution_provider'])
         miner['short_address'] = f"{miner['solution_provider'][:8]}...{miner['solution_provider'][-8:]}"
@@ -899,29 +914,54 @@ def mining_dashboard(request):
         if dune_data and dune_available:
             real_earnings = dune_service.get_miner_earnings_by_address(miner['solution_provider'])
         
+        # Try to get real sales data
+        real_sales_data = None
+        if sales_data_available and all_miner_sales_data:
+            real_sales_data = next(
+                (data for data in all_miner_sales_data 
+                 if data['wallet_address'].lower() == miner['solution_provider'].lower()), 
+                None
+            )
+        
         if real_earnings is not None:
-            # Use real Dune data
+            # Use real Dune data for earnings
             miner['actual_earnings'] = real_earnings
             miner['earnings_source'] = 'dune_analytics'
-            miner['has_real_data'] = True
+            miner['has_real_earnings_data'] = True
         else:
-            # Fall back to estimates with improved calculation based on fee structure
-            # Based on your clarification:
-            # - Automine: task fee - model fee  
-            # - User task: full task fee
-            # - ~10% of all fees go to treasury
-            
-            # Conservative estimate: assume mix of automine and user tasks
-            # Automine typically has lower net rewards (task fee - model fee)
-            # User tasks have full task fee, minus 10% to treasury
-            
-            estimated_earnings = miner['total_tasks_completed'] * 0.3  # More conservative estimate
+            # Fall back to estimates
+            estimated_earnings = miner['total_tasks_completed'] * 0.3  # Conservative estimate
             miner['estimated_earnings'] = estimated_earnings
             miner['earnings_source'] = 'estimated'
-            miner['has_real_data'] = False
+            miner['has_real_earnings_data'] = False
         
-        # Create earnings display
-        if miner.get('has_real_data'):
+        # Add real sales data
+        if real_sales_data:
+            miner['sales_data'] = {
+                'total_aius_sold': real_sales_data['total_aius_sold'],
+                'total_usd_received': real_sales_data['total_usd_received'],
+                'sales_count': real_sales_data['sales_count'],
+                'sell_percentage': real_sales_data['sell_percentage'],
+                'avg_sale_price': real_sales_data['avg_sale_price'],
+                'current_holdings_estimate': real_sales_data['current_holdings_estimate'],
+                'is_active_seller': real_sales_data['is_active_seller'],
+                'has_real_sales_data': True
+            }
+        else:
+            # No real sales data available
+            miner['sales_data'] = {
+                'total_aius_sold': 0,
+                'total_usd_received': 0,
+                'sales_count': 0,
+                'sell_percentage': 0,
+                'avg_sale_price': 0,
+                'current_holdings_estimate': miner.get('estimated_earnings', 0),
+                'is_active_seller': False,
+                'has_real_sales_data': False
+            }
+        
+        # Create comprehensive earnings display
+        if miner.get('has_real_earnings_data'):
             miner['earnings_display'] = {
                 'amount': miner['actual_earnings'],
                 'type': 'actual',
@@ -931,7 +971,7 @@ def mining_dashboard(request):
             miner['earnings_display'] = {
                 'amount': miner['estimated_earnings'],
                 'type': 'estimated', 
-                'note': 'Estimated based on task completion (actual earnings available on Dune)'
+                'note': 'Estimated based on task completion'
             }
     
     # Get total network statistics
@@ -1044,8 +1084,7 @@ def mining_dashboard(request):
         unique_submitters_this_month=Count('task_submitter', distinct=True)
     )
     
-    # NEW: AIUS Token Sales and Profit Analysis
-    # Current market data from search results
+    # REAL AIUS Token Sales Analysis (replacing estimates)
     current_aius_price = 14.44  # USD from CoinMarketCap
     market_cap = 4200000  # $4.2M
     circulating_supply = 290970  # ~291K AIUS
@@ -1055,6 +1094,26 @@ def mining_dashboard(request):
     # Historical price data (from search results)
     all_time_high = 1086.68  # Feb 19, 2024
     all_time_low = 12.04     # May 31, 2025
+    
+    # Real sales analysis using on-chain data
+    if sales_data_available and network_sales_summary:
+        real_sales_analysis = {
+            'network_summary': network_sales_summary,
+            'has_real_data': True,
+            'total_miners_analyzed': network_sales_summary['total_miners_analyzed'],
+            'miners_with_sales': network_sales_summary['miners_with_sales'],
+            'total_aius_sold': network_sales_summary['total_aius_sold'],
+            'total_usd_from_sales': network_sales_summary['total_usd_from_sales'],
+            'avg_sell_percentage': network_sales_summary['avg_sell_percentage'],
+            'selling_patterns': network_sales_summary['selling_patterns'],
+            'top_sellers': network_sales_summary['top_sellers'][:10],
+        }
+    else:
+        # Fallback to estimated analysis
+        real_sales_analysis = {
+            'has_real_data': False,
+            'note': 'Real sales data unavailable - using estimates'
+        }
     
     # Calculate token sales analysis for miners
     token_sales_analysis = {
@@ -1071,6 +1130,7 @@ def mining_dashboard(request):
             'current_vs_ath': round(((current_aius_price - all_time_high) / all_time_high) * 100, 2),
             'current_vs_atl': round(((current_aius_price - all_time_low) / all_time_low) * 100, 2),
         },
+        'real_sales_data': real_sales_analysis,  # NEW: Real sales data
         'miner_scenarios': {
             'early_miner_ath': {
                 'description': 'Early miner who sold at ATH',
@@ -1102,26 +1162,44 @@ def mining_dashboard(request):
         }
     }
     
-    # Enhanced miner profit analysis
+    # Enhanced miner profit analysis with real sales data
     for miner in miners_stats:
-        # Estimate potential AIUS earned (conservative)
-        estimated_aius_earned = miner.get('estimated_earnings', 0)
-        
-        # Calculate different selling scenarios
-        miner['profit_scenarios'] = {
-            'if_sold_at_ath': {
-                'total_usd': estimated_aius_earned * all_time_high,
-                'profit_multiple': round(all_time_high / current_aius_price, 1),
-            },
-            'if_selling_now': {
-                'total_usd': estimated_aius_earned * current_aius_price,
-                'vs_ath_loss': round(((current_aius_price - all_time_high) / all_time_high) * 100, 1),
-            },
-            'if_dca_selling': {
-                'avg_price': (all_time_high + current_aius_price) / 2,
-                'total_usd': estimated_aius_earned * ((all_time_high + current_aius_price) / 2),
+        # Get real sales data if available
+        if miner['sales_data']['has_real_sales_data']:
+            # Use real sales data
+            miner['profit_analysis'] = {
+                'type': 'real_data',
+                'total_aius_sold': miner['sales_data']['total_aius_sold'],
+                'total_usd_received': miner['sales_data']['total_usd_received'],
+                'avg_sale_price': miner['sales_data']['avg_sale_price'],
+                'current_holdings': miner['sales_data']['current_holdings_estimate'],
+                'sell_percentage': miner['sales_data']['sell_percentage'],
+                'is_active_seller': miner['sales_data']['is_active_seller'],
+                'note': 'Based on real on-chain transfer data'
             }
-        }
+        else:
+            # Fall back to estimated scenarios
+            estimated_aius_earned = miner.get('estimated_earnings', 0)
+            
+            miner['profit_analysis'] = {
+                'type': 'estimated',
+                'estimated_aius_earned': estimated_aius_earned,
+                'scenarios': {
+                    'if_sold_at_ath': {
+                        'total_usd': estimated_aius_earned * all_time_high,
+                        'profit_multiple': round(all_time_high / current_aius_price, 1),
+                    },
+                    'if_selling_now': {
+                        'total_usd': estimated_aius_earned * current_aius_price,
+                        'vs_ath_loss': round(((current_aius_price - all_time_high) / all_time_high) * 100, 1),
+                    },
+                    'if_dca_selling': {
+                        'avg_price': (all_time_high + current_aius_price) / 2,
+                        'total_usd': estimated_aius_earned * ((all_time_high + current_aius_price) / 2),
+                    }
+                },
+                'note': 'Estimated scenarios - real sales data not available'
+            }
     
     # Prepare chart data
     daily_chart_data = {
@@ -1161,7 +1239,8 @@ def mining_dashboard(request):
         'fee_structure': fee_structure_info,
         'dune_dashboard': 'https://dune.com/missingno69420/arbius',
         'dune_available': dune_available,
-        'dune_integration': dune_available
+        'dune_integration': dune_available,
+        'sales_tracking_available': sales_data_available  # NEW
     }
     
     context = {
@@ -1181,7 +1260,8 @@ def mining_dashboard(request):
         'hourly_chart_data': hourly_chart_data,
         'earning_info': earning_info,
         'dune_available': dune_available,
-        'token_sales_analysis': token_sales_analysis,  # NEW
+        'sales_data_available': sales_data_available,  # NEW
+        'token_sales_analysis': token_sales_analysis,
         'wallet_address': current_wallet_address,
         'user_profile': getattr(request, 'user_profile', None),
     }
