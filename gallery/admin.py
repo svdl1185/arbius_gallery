@@ -1,92 +1,54 @@
 from django.contrib import admin
-from .models import ArbiusImage, ScanStatus, MinerAddress
+from django.db.models import Count, Sum
+from django.utils.html import format_html
+from .models import (
+    ArbiusImage, UserProfile, ImageUpvote, ImageComment, ScanStatus, 
+    MinerAddress, TokenTransaction, MinerTokenEarnings
+)
 
 
 @admin.register(ArbiusImage)
 class ArbiusImageAdmin(admin.ModelAdmin):
-    list_display = ['short_cid', 'block_number', 'timestamp', 'solution_provider', 'is_accessible', 'short_model_id', 'has_prompt', 'is_system_text']
-    list_filter = ['is_accessible', 'timestamp', 'discovered_at', 'model_id']
-    search_fields = ['cid', 'transaction_hash', 'task_id', 'solution_provider', 'task_submitter', 'prompt', 'model_id']
-    readonly_fields = ['transaction_hash', 'task_id', 'block_number', 'timestamp', 'cid', 'discovered_at']
+    list_display = ['short_cid', 'short_tx_hash', 'block_number', 'timestamp', 'solution_provider', 'task_submitter', 'is_accessible', 'upvote_count_display', 'comment_count_display']
+    list_filter = ['is_accessible', 'timestamp', 'model_id']
+    search_fields = ['cid', 'transaction_hash', 'task_id', 'prompt', 'solution_provider', 'task_submitter']
+    readonly_fields = ['transaction_hash', 'task_id', 'block_number', 'cid', 'discovered_at', 'upvote_count_display', 'comment_count_display']
+    ordering = ['-timestamp']
     
-    fieldsets = (
-        ('Transaction Details', {
-            'fields': ('transaction_hash', 'task_id', 'block_number', 'timestamp')
-        }),
-        ('Image Information', {
-            'fields': ('cid', 'ipfs_url', 'image_url', 'is_accessible')
-        }),
-        ('AI Generation Details', {
-            'fields': ('model_id', 'prompt', 'input_parameters')
-        }),
-        ('Addresses', {
-            'fields': ('solution_provider', 'task_submitter', 'owner_address')
-        }),
-        ('Legacy/Metadata', {
-            'fields': ('miner_address', 'gas_used')
-        }),
-        ('Tracking', {
-            'fields': ('discovered_at', 'last_checked')
-        }),
-    )
+    def upvote_count_display(self, obj):
+        return obj.upvote_count
+    upvote_count_display.short_description = 'Upvotes'
     
-    def short_cid(self, obj):
-        return obj.short_cid
-    short_cid.short_description = 'CID'
+    def comment_count_display(self, obj):
+        return obj.comment_count
+    comment_count_display.short_description = 'Comments'
     
-    def short_model_id(self, obj):
-        return obj.short_model_id
-    short_model_id.short_description = 'Model'
-    
-    def has_prompt(self, obj):
-        return bool(obj.prompt)
-    has_prompt.boolean = True
-    has_prompt.short_description = 'Has Prompt'
-    
-    def is_system_text(self, obj):
-        """Identify entries that are system text (not actual images)"""
-        if not obj.prompt:
-            return False
-        return obj.prompt.strip().startswith("<|begin_of_text|>")
-    is_system_text.boolean = True
-    is_system_text.short_description = 'System Text'
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('upvotes', 'comments')
 
 
-@admin.register(MinerAddress)
-class MinerAddressAdmin(admin.ModelAdmin):
-    list_display = ['short_address', 'is_active', 'total_solutions', 'total_commitments', 'last_seen', 'first_seen']
-    list_filter = ['is_active', 'last_seen', 'first_seen']
-    search_fields = ['wallet_address']
-    readonly_fields = ['wallet_address', 'first_seen']
-    ordering = ['-last_seen']
-    
-    fieldsets = (
-        ('Miner Information', {
-            'fields': ('wallet_address', 'is_active')
-        }),
-        ('Activity Statistics', {
-            'fields': ('total_solutions', 'total_commitments')
-        }),
-        ('Timestamps', {
-            'fields': ('first_seen', 'last_seen')
-        }),
-    )
-    
-    def short_address(self, obj):
-        return f"{obj.wallet_address[:10]}...{obj.wallet_address[-4:]}"
-    short_address.short_description = 'Wallet Address'
-    
-    actions = ['mark_as_active', 'mark_as_inactive']
-    
-    def mark_as_active(self, request, queryset):
-        updated = queryset.update(is_active=True)
-        self.message_user(request, f'{updated} miners marked as active.')
-    mark_as_active.short_description = 'Mark selected miners as active'
-    
-    def mark_as_inactive(self, request, queryset):
-        updated = queryset.update(is_active=False)
-        self.message_user(request, f'{updated} miners marked as inactive.')
-    mark_as_inactive.short_description = 'Mark selected miners as inactive'
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ['wallet_address', 'display_name', 'total_images_created', 'total_upvotes_received', 'created_at']
+    search_fields = ['wallet_address', 'display_name']
+    readonly_fields = ['total_images_created', 'total_upvotes_received']
+    ordering = ['-total_images_created']
+
+
+@admin.register(ImageUpvote)
+class ImageUpvoteAdmin(admin.ModelAdmin):
+    list_display = ['image', 'wallet_address', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['wallet_address', 'image__cid']
+    ordering = ['-created_at']
+
+
+@admin.register(ImageComment)
+class ImageCommentAdmin(admin.ModelAdmin):
+    list_display = ['image', 'wallet_address', 'short_content', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['wallet_address', 'content', 'image__cid']
+    ordering = ['-created_at']
 
 
 @admin.register(ScanStatus)
@@ -101,3 +63,66 @@ class ScanStatusAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         # Don't allow deletion of ScanStatus
         return False
+
+
+@admin.register(MinerAddress)
+class MinerAddressAdmin(admin.ModelAdmin):
+    list_display = ['wallet_address', 'total_solutions', 'total_commitments', 'first_seen', 'last_seen', 'is_active']
+    list_filter = ['is_active', 'first_seen', 'last_seen']
+    search_fields = ['wallet_address']
+    readonly_fields = ['first_seen']
+    ordering = ['-last_seen']
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request)
+
+
+@admin.register(TokenTransaction)
+class TokenTransactionAdmin(admin.ModelAdmin):
+    list_display = ['transaction_hash', 'from_address_short', 'to_address_short', 'amount', 'timestamp', 'is_sale', 'sale_price_usd']
+    list_filter = ['is_sale', 'timestamp', 'exchange_address']
+    search_fields = ['transaction_hash', 'from_address', 'to_address', 'exchange_address']
+    readonly_fields = ['transaction_hash', 'block_number', 'timestamp', 'gas_price', 'gas_used', 'created_at']
+    ordering = ['-timestamp']
+    
+    def from_address_short(self, obj):
+        return f"{obj.from_address[:8]}...{obj.from_address[-6:]}"
+    from_address_short.short_description = 'From'
+    
+    def to_address_short(self, obj):
+        return f"{obj.to_address[:8]}...{obj.to_address[-6:]}"
+    to_address_short.short_description = 'To'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request)
+
+
+@admin.register(MinerTokenEarnings)
+class MinerTokenEarningsAdmin(admin.ModelAdmin):
+    list_display = [
+        'miner_address_short', 'total_aius_earned', 'total_aius_sold', 
+        'total_usd_from_sales', 'last_analyzed', 'needs_reanalysis'
+    ]
+    list_filter = ['needs_reanalysis', 'last_analyzed', 'last_sale_date']
+    search_fields = ['miner_address']
+    readonly_fields = ['last_analyzed', 'updated_at']
+    ordering = ['-total_usd_from_sales']
+    
+    def miner_address_short(self, obj):
+        return format_html(
+            '<a href="https://arbiscan.io/address/{}" target="_blank">{}</a>',
+            obj.miner_address,
+            f"{obj.miner_address[:8]}...{obj.miner_address[-6:]}"
+        )
+    miner_address_short.short_description = 'Miner Address'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request)
+    
+    # Add some useful actions
+    actions = ['mark_for_reanalysis']
+    
+    def mark_for_reanalysis(self, request, queryset):
+        updated = queryset.update(needs_reanalysis=True)
+        self.message_user(request, f"{updated} miners marked for reanalysis.")
+    mark_for_reanalysis.short_description = "Mark selected miners for reanalysis"

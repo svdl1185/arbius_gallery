@@ -8,9 +8,22 @@
             <i class="bi bi-cpu"></i> Mining Analytics Dashboard
         </h1>
         <p class="hero-subtitle">
-            Comprehensive analytics for Arbius (AIUS) mining operations and network statistics
+            Comprehensive analytics for Arbius (AIUS) mining operations and token sales tracking
         </p>
     </div>
+
+    <!-- Token Analysis Status -->
+    {% if not has_token_data %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h5><i class="bi bi-info-circle"></i> Token Analysis Required</h5>
+                <p>Token tracking data is not available yet. The system needs to analyze miner wallets to track AIUS token movements and sales.</p>
+                <p class="mb-0">Run the following command to start analysis: <code>python manage.py analyze_miner_tokens --all</code></p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Network Overview -->
     <div class="row mb-5">
@@ -25,12 +38,24 @@
                         <div class="stat-label">Total Tasks Completed</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number text-success">{{ total_aius_earned|floatformat:1 }}</div>
+                        <div class="stat-number text-success">
+                            {% if has_token_data %}
+                                {{ total_aius_earned|floatformat:1 }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </div>
                         <div class="stat-label">Total AIUS Earned</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number text-info">${{ total_usd_sold|floatformat:0 }}</div>
-                        <div class="stat-label">Total $ Sold</div>
+                        <div class="stat-number text-info">
+                            {% if has_token_data %}
+                                ${{ total_usd_sold|floatformat:0 }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </div>
+                        <div class="stat-label">Total $ from Sales</div>
                     </div>
                 </div>
             </div>
@@ -54,6 +79,7 @@
                                 <th>Last Task</th>
                                 <th>AIUS Earned</th>
                                 <th>$ Made from Selling</th>
+                                <th>Analysis Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -77,14 +103,34 @@
                                 <td>
                                     {% if miner.usd_from_sales > 0 %}
                                         <span class="text-success">${{ miner.usd_from_sales|floatformat:2 }}</span>
+                                    {% elif miner.has_real_earnings %}
+                                        <span class="text-warning">$0.00</span>
                                     {% else %}
                                         <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if miner.has_real_earnings %}
+                                        {% if miner.last_analyzed %}
+                                            <small class="text-success">
+                                                <i class="bi bi-check-circle"></i> 
+                                                {{ miner.last_analyzed|date:"M d, H:i" }}
+                                            </small>
+                                        {% else %}
+                                            <small class="text-success">
+                                                <i class="bi bi-check-circle"></i> Analyzed
+                                            </small>
+                                        {% endif %}
+                                    {% else %}
+                                        <small class="text-warning">
+                                            <i class="bi bi-clock"></i> Pending
+                                        </small>
                                     {% endif %}
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="6" class="text-center text-muted">
+                                <td colspan="7" class="text-center text-muted">
                                     No mining data available.
                                 </td>
                             </tr>
@@ -203,19 +249,16 @@
 .stats-grid-compact {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin-bottom: 20px;
+    gap: 30px;
+    margin-top: 20px;
 }
 
 .stat-item {
     text-align: center;
-    padding: 15px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 8px;
 }
 
 .stat-number {
-    font-size: 2rem;
+    font-size: 2.5rem;
     font-weight: 700;
     margin-bottom: 5px;
 }
@@ -227,48 +270,53 @@
     letter-spacing: 0.5px;
 }
 
+.address-link {
+    color: #17a2b8 !important;
+    text-decoration: none;
+    font-family: 'Courier New', monospace;
+}
+
+.address-link:hover {
+    color: #20c997 !important;
+    text-decoration: underline;
+}
+
 .table-dark {
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: rgba(0, 0, 0, 0.2);
 }
 
 .table-dark th {
     border-color: rgba(255, 255, 255, 0.2);
-    color: #fff;
     font-weight: 600;
+    color: #fff;
 }
 
 .table-dark td {
     border-color: rgba(255, 255, 255, 0.1);
-    color: #ccc;
 }
 
-.table-striped > tbody > tr:nth-of-type(odd) > td {
-    background-color: rgba(255, 255, 255, 0.02);
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, 0.03);
 }
 
-.badge {
-    font-size: 0.75rem;
-    padding: 4px 8px;
-}
-
-/* Address and Transaction Links */
-.address-link {
-    color: #6c757d;
-    text-decoration: none;
-    transition: color 0.2s ease;
-}
-
-.address-link:hover {
-    color: #007bff;
-    text-decoration: underline;
-}
-
-.address-link:visited {
-    color: #6c757d;
-}
-
-.address-link:visited:hover {
-    color: #007bff;
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .stats-grid-compact {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 20px;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+    }
+    
+    .hero-title {
+        font-size: 2rem;
+    }
+    
+    .info-card {
+        padding: 20px;
+    }
 }
 </style>
 {% endblock %} 

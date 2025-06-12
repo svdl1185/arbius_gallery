@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from decimal import Decimal
 
 
 class ArbiusImage(models.Model):
@@ -236,3 +237,61 @@ class MinerAddress(models.Model):
             models.Index(fields=['last_seen']),
             models.Index(fields=['is_active']),
         ]
+
+
+class TokenTransaction(models.Model):
+    """Model to track AIUS token transactions"""
+    
+    transaction_hash = models.CharField(max_length=66, unique=True, db_index=True)
+    from_address = models.CharField(max_length=42, db_index=True)
+    to_address = models.CharField(max_length=42, db_index=True)
+    amount = models.DecimalField(max_digits=36, decimal_places=18)  # Support large token amounts
+    block_number = models.BigIntegerField(db_index=True)
+    timestamp = models.DateTimeField(db_index=True)
+    gas_price = models.BigIntegerField(null=True, blank=True)
+    gas_used = models.BigIntegerField(null=True, blank=True)
+    
+    # Token sale tracking
+    is_sale = models.BooleanField(default=False)
+    sale_price_usd = models.DecimalField(max_digits=20, decimal_places=8, null=True, blank=True)
+    exchange_address = models.CharField(max_length=42, null=True, blank=True)
+    
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['from_address', '-timestamp']),
+            models.Index(fields=['to_address', '-timestamp']),
+            models.Index(fields=['block_number']),
+            models.Index(fields=['is_sale']),
+        ]
+    
+    def __str__(self):
+        return f"AIUS Transfer: {self.amount} from {self.from_address[:8]}... to {self.to_address[:8]}..."
+
+
+class MinerTokenEarnings(models.Model):
+    """Model to track calculated earnings for each miner"""
+    
+    miner_address = models.CharField(max_length=42, unique=True, db_index=True)
+    total_aius_earned = models.DecimalField(max_digits=36, decimal_places=18, default=0)
+    total_aius_sold = models.DecimalField(max_digits=36, decimal_places=18, default=0)
+    total_usd_from_sales = models.DecimalField(max_digits=20, decimal_places=2, default=0)
+    
+    # Tracking metrics
+    first_earning_date = models.DateTimeField(null=True, blank=True)
+    last_earning_date = models.DateTimeField(null=True, blank=True)
+    last_sale_date = models.DateTimeField(null=True, blank=True)
+    
+    # Analysis status
+    last_analyzed = models.DateTimeField(null=True, blank=True)
+    needs_reanalysis = models.BooleanField(default=True)
+    
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-total_usd_from_sales']
+    
+    def __str__(self):
+        return f"Earnings for {self.miner_address[:8]}...: ${self.total_usd_from_sales}"

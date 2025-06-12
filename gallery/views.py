@@ -16,10 +16,11 @@ from datetime import datetime, timedelta
 import json
 import logging
 
-from .models import ArbiusImage, UserProfile, ImageUpvote, ImageComment, MinerAddress
+from .models import ArbiusImage, UserProfile, ImageUpvote, ImageComment, MinerAddress, MinerTokenEarnings
 from .middleware import require_wallet_auth, get_display_name_for_wallet
 from .crypto_utils import generate_auth_nonce, verify_wallet_signature, create_auth_message
 from .dune_service import dune_service
+from .token_tracking_service import token_tracker
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -879,7 +880,19 @@ def mining_dashboard(request):
         solution_provider='0x0000000000000000000000000000000000000000'
     ).order_by('-total_tasks_completed')
     
+    # Get token earnings data
+    token_earnings_data = {}
+    try:
+        earnings_queryset = MinerTokenEarnings.objects.all()
+        for earnings in earnings_queryset:
+            token_earnings_data[earnings.miner_address.lower()] = earnings
+    except Exception as e:
+        logger.warning(f"Error fetching token earnings: {e}")
+    
     # Enhanced miner statistics with all required data
+    total_aius_earned_all = 0
+    total_usd_sold_all = 0
+    
     for miner in miners_stats:
         miner['display_name'] = get_display_name_for_wallet(miner['solution_provider'])
         miner['short_address'] = f"{miner['solution_provider'][:8]}...{miner['solution_provider'][-8:]}"
@@ -895,30 +908,27 @@ def mining_dashboard(request):
         else:
             miner['last_task_formatted'] = 'N/A'
         
-        # AIUS earned - only show real earnings from Dune Analytics
-        if dune_data and dune_available:
-            real_earnings = dune_service.get_miner_earnings_by_address(miner['solution_provider'])
-            if real_earnings is not None:
-                miner['aius_earned'] = real_earnings
-                miner['has_real_earnings'] = True
-            else:
-                miner['aius_earned'] = 0
-                miner['has_real_earnings'] = False
-        else:
-            miner['aius_earned'] = 0
-            miner['has_real_earnings'] = False
+        # Get token earnings data for this miner
+        miner_key = miner['solution_provider'].lower()
+        token_earnings = token_earnings_data.get(miner_key)
         
-        # $ made from selling - placeholder for future implementation
-        miner['usd_from_sales'] = 0  # Will be populated with real sales data later
+        if token_earnings:
+            miner['aius_earned'] = float(token_earnings.total_aius_earned)
+            miner['usd_from_sales'] = float(token_earnings.total_usd_from_sales)
+            miner['has_real_earnings'] = True
+            miner['last_analyzed'] = token_earnings.last_analyzed
+            
+            total_aius_earned_all += miner['aius_earned']
+            total_usd_sold_all += miner['usd_from_sales']
+        else:
+            # No token data yet - needs analysis
+            miner['aius_earned'] = 0
+            miner['usd_from_sales'] = 0
+            miner['has_real_earnings'] = False
+            miner['last_analyzed'] = None
     
     # Get basic network statistics
     total_tasks = ArbiusImage.objects.count()
-    
-    # Calculate total AIUS earned (placeholder - will be real data later)
-    total_aius_earned = 0  # Will be sum of all real earnings
-    
-    # Calculate total $ sold (placeholder - will be real sales data later)
-    total_usd_sold = 0  # Will be sum of all sales
     
     # Get recent mining activity with prompts
     recent_mining_activity = ArbiusImage.objects.filter(
@@ -937,13 +947,17 @@ def mining_dashboard(request):
         else:
             activity.prompt_short = activity.prompt or "N/A"
     
+    # Check if we have any token earnings data at all
+    has_token_data = len(token_earnings_data) > 0
+    
     context = {
         'miners_stats': miners_stats,
         'total_tasks': total_tasks,
-        'total_aius_earned': total_aius_earned,
-        'total_usd_sold': total_usd_sold,
+        'total_aius_earned': total_aius_earned_all,
+        'total_usd_sold': total_usd_sold_all,
         'recent_mining_activity': recent_mining_activity,
         'dune_available': dune_available,
+        'has_token_data': has_token_data,
         'wallet_address': current_wallet_address,
         'user_profile': getattr(request, 'user_profile', None),
     }
