@@ -60,12 +60,9 @@
                             {% for miner in miners_stats %}
                             <tr>
                                 <td>
-                                    <div>{{ miner.display_name }}</div>
-                                    <small class="text-muted">
-                                        <a href="https://arbiscan.io/address/{{ miner.solution_provider }}" target="_blank" class="address-link">
-                                            {{ miner.short_address }}
-                                        </a>
-                                    </small>
+                                    <a href="https://arbiscan.io/address/{{ miner.solution_provider }}" target="_blank" class="address-link">
+                                        {{ miner.short_address }}
+                                    </a>
                                 </td>
                                 <td>{{ miner.total_tasks_completed }}</td>
                                 <td>{{ miner.first_task_formatted }}</td>
@@ -127,14 +124,14 @@
                                 <td>
                                     <small>
                                         <a href="https://arbiscan.io/address/{{ activity.solution_provider }}" target="_blank" class="address-link">
-                                            {{ activity.miner_display_name }}
+                                            {{ activity.solution_provider|slice:":8" }}...
                                         </a>
                                     </small>
                                 </td>
                                 <td>
                                     <small>
                                         <a href="https://arbiscan.io/address/{{ activity.task_submitter }}" target="_blank" class="address-link">
-                                            {{ activity.submitter_display_name }}
+                                            {{ activity.task_submitter|slice:":8" }}...
                                         </a>
                                     </small>
                                 </td>
