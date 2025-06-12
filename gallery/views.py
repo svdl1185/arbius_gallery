@@ -20,7 +20,6 @@ from .models import ArbiusImage, UserProfile, ImageUpvote, ImageComment, MinerAd
 from .middleware import require_wallet_auth, get_display_name_for_wallet
 from .crypto_utils import generate_auth_nonce, verify_wallet_signature, create_auth_message
 from .dune_service import dune_service
-from .aius_sales_tracker import AIUSSalesTracker
 
 # Set up logger
 logger = logging.getLogger(__name__)
