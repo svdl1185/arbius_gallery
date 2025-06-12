@@ -6,6 +6,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from django.conf import settings
 from django.core.cache import cache
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -64,24 +65,53 @@ class ArbiusDuneService:
             return cached_data
         
         try:
-            # Try to fetch from multiple known Arbius queries
-            # These are example query IDs - need to be replaced with actual Arbius dashboard queries
-            query_ids = [
-                # 1234567,  # Miner earnings by address
-                # 1234568,  # Total AIUS distributed 
-                # 1234569,  # Daily mining activity
-            ]
+            # Known Arbius query IDs from https://dune.com/missingno69420/arbius
+            # TODO: Replace these with actual query IDs from the dashboard
+            arbius_queries = {
+                # 'miner_earnings': 1234567,     # Query for individual miner earnings
+                # 'total_distributed': 1234568,  # Query for total AIUS distributed
+                # 'daily_activity': 1234569,     # Query for daily mining activity
+                # 'top_miners': 1234570,         # Query for top miners by earnings
+            }
             
             earnings_data = {
                 'miners': {},
                 'total_distributed': 0,
                 'last_updated': None,
-                'source': 'dune_analytics'
+                'source': 'dune_analytics',
+                'queries_used': []
             }
             
-            # For now, return placeholder data structure
-            # TODO: Replace with actual Dune query execution once we have the query IDs
-            logger.info("Dune integration ready but needs actual Arbius query IDs")
+            # If we have actual query IDs, execute them
+            if arbius_queries:
+                for query_name, query_id in arbius_queries.items():
+                    try:
+                        logger.info(f"Executing Arbius query: {query_name} (ID: {query_id})")
+                        results = self.execute_custom_query(query_id)
+                        
+                        if results:
+                            earnings_data['queries_used'].append(query_name)
+                            
+                            # Process different types of queries
+                            if query_name == 'miner_earnings':
+                                # Expected format: [{'miner_address': '0x...', 'total_earnings': 123.45}, ...]
+                                for row in results:
+                                    if 'miner_address' in row and 'total_earnings' in row:
+                                        earnings_data['miners'][row['miner_address'].lower()] = float(row['total_earnings'])
+                            
+                            elif query_name == 'total_distributed':
+                                # Expected format: [{'total_aius': 12345.67}]
+                                if results and 'total_aius' in results[0]:
+                                    earnings_data['total_distributed'] = float(results[0]['total_aius'])
+                            
+                            # Add more query processing as needed
+                            
+                    except Exception as e:
+                        logger.warning(f"Failed to execute query {query_name}: {e}")
+                
+                earnings_data['last_updated'] = timezone.now().isoformat()
+            else:
+                logger.info("No Arbius query IDs configured yet")
             
             # Cache the result
             cache.set(cache_key, earnings_data, cache_timeout)

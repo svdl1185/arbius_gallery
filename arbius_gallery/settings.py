@@ -212,3 +212,6 @@ IPFS_BASE_URL = 'https://ipfs.arbius.org/ipfs'
 
 # Pagination
 GALLERY_IMAGES_PER_PAGE = 20
+
+# Dune Analytics Integration
+DUNE_API_KEY = config('DUNE_API_KEY', default=None)
