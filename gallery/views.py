@@ -21,6 +21,9 @@ from .middleware import require_wallet_auth, get_display_name_for_wallet
 from .crypto_utils import generate_auth_nonce, verify_wallet_signature, create_auth_message
 from .dune_service import dune_service
 
+# Set up logger
+logger = logging.getLogger(__name__)
+
 
 def get_display_name_for_wallet(wallet_address):
     """Get appropriate display name for a wallet address"""
