@@ -868,7 +868,7 @@ def mining_dashboard(request):
         except Exception as e:
             logger.warning(f"Failed to fetch Dune data: {e}")
     
-    # Get all miners with their basic statistics
+    # Get all miners with their comprehensive statistics
     miners_stats = ArbiusImage.objects.values('solution_provider').annotate(
         total_tasks_completed=Count('id'),
         first_task=Min('timestamp'),
@@ -879,64 +879,70 @@ def mining_dashboard(request):
         solution_provider='0x0000000000000000000000000000000000000000'
     ).order_by('-total_tasks_completed')
     
-    # Simplified miner statistics - only real earnings
+    # Enhanced miner statistics with all required data
     for miner in miners_stats:
         miner['display_name'] = get_display_name_for_wallet(miner['solution_provider'])
         miner['short_address'] = f"{miner['solution_provider'][:8]}...{miner['solution_provider'][-8:]}"
         
-        # Calculate active days
-        if miner['first_task'] and miner['last_task']:
-            active_days = (miner['last_task'] - miner['first_task']).days + 1
-            miner['active_days'] = active_days
-            miner['avg_tasks_per_day'] = round(miner['total_tasks_completed'] / max(active_days, 1), 2)
+        # Format dates
+        if miner['first_task']:
+            miner['first_task_formatted'] = miner['first_task'].strftime('%Y-%m-%d')
         else:
-            miner['active_days'] = 0
-            miner['avg_tasks_per_day'] = 0
+            miner['first_task_formatted'] = 'N/A'
+            
+        if miner['last_task']:
+            miner['last_task_formatted'] = miner['last_task'].strftime('%Y-%m-%d')
+        else:
+            miner['last_task_formatted'] = 'N/A'
         
-        # Only show real earnings from Dune Analytics - no estimates
+        # AIUS earned - only show real earnings from Dune Analytics
         if dune_data and dune_available:
             real_earnings = dune_service.get_miner_earnings_by_address(miner['solution_provider'])
             if real_earnings is not None:
-                miner['actual_earnings'] = real_earnings
+                miner['aius_earned'] = real_earnings
                 miner['has_real_earnings'] = True
             else:
+                miner['aius_earned'] = 0
                 miner['has_real_earnings'] = False
         else:
+            miner['aius_earned'] = 0
             miner['has_real_earnings'] = False
+        
+        # $ made from selling - placeholder for future implementation
+        miner['usd_from_sales'] = 0  # Will be populated with real sales data later
     
     # Get basic network statistics
     total_tasks = ArbiusImage.objects.count()
-    total_unique_miners = ArbiusImage.objects.filter(
-        solution_provider__isnull=False
-    ).exclude(
-        solution_provider='0x0000000000000000000000000000000000000000'
-    ).values('solution_provider').distinct().count()
     
-    # Get top miners by volume (only those with real earnings)
-    top_miners_by_volume = [m for m in miners_stats[:10] if m.get('has_real_earnings', False)]
+    # Calculate total AIUS earned (placeholder - will be real data later)
+    total_aius_earned = 0  # Will be sum of all real earnings
     
-    # Get recent mining activity
+    # Calculate total $ sold (placeholder - will be real sales data later)
+    total_usd_sold = 0  # Will be sum of all sales
+    
+    # Get recent mining activity with prompts
     recent_mining_activity = ArbiusImage.objects.filter(
         solution_provider__isnull=False
     ).exclude(
         solution_provider='0x0000000000000000000000000000000000000000'
     ).select_related().order_by('-timestamp')[:20]
     
-    # Add display names for recent activity
+    # Add display names and format prompts for recent activity
     for activity in recent_mining_activity:
         activity.miner_display_name = get_display_name_for_wallet(activity.solution_provider)
         activity.submitter_display_name = get_display_name_for_wallet(activity.task_submitter)
-    
-    # Calculate average tasks per miner
-    avg_tasks_per_miner = round(total_tasks / max(total_unique_miners, 1), 2)
+        # Truncate prompt if too long
+        if activity.prompt and len(activity.prompt) > 50:
+            activity.prompt_short = activity.prompt[:50] + "..."
+        else:
+            activity.prompt_short = activity.prompt or "N/A"
     
     context = {
         'miners_stats': miners_stats,
         'total_tasks': total_tasks,
-        'total_unique_miners': total_unique_miners,
-        'top_miners_by_volume': top_miners_by_volume,
+        'total_aius_earned': total_aius_earned,
+        'total_usd_sold': total_usd_sold,
         'recent_mining_activity': recent_mining_activity,
-        'avg_tasks_per_miner': avg_tasks_per_miner,
         'dune_available': dune_available,
         'wallet_address': current_wallet_address,
         'user_profile': getattr(request, 'user_profile', None),
